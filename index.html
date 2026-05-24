@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgênciaOS — Sistema de Gestão</title>
+  <meta name="description" content="Sistema completo de gestão para agências de marketing digital">
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>">
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- jsPDF para relatórios -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.7.0/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <style>
+    /* Loading screen */
+    #app-loading {
+      position: fixed; inset: 0;
+      background: white; z-index: 9999;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 16px;
+    }
+    .loading-logo {
+      width: 64px; height: 64px; background: #6366f1;
+      border-radius: 18px; display: flex;
+      align-items: center; justify-content: center;
+      color: white; font-weight: 800; font-size: 26px;
+      animation: pulse 1.5s ease infinite;
+    }
+    .loading-text { font-size: 13px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+
+<!-- Loading screen -->
+<div id="app-loading">
+  <div class="loading-logo">A</div>
+  <div class="loading-text">Carregando AgênciaOS...</div>
+</div>
+
+<!-- Login Page -->
+<div id="login-page" style="display:none;">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-mark">A</div>
+      <h1 id="login-agency-name">AgênciaOS</h1>
+      <p>Sistema de Gestão de Agência</p>
+    </div>
+
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label">E-mail</label>
+        <input type="email" id="login-email" class="form-input" placeholder="seu@email.com" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Senha</label>
+        <div style="position:relative;">
+          <input type="password" id="login-password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+          <button type="button" id="toggle-password" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;cursor:pointer;color:#9ca3af;">👁</button>
+        </div>
+      </div>
+
+      <div id="login-error" style="display:none;" class="alert alert-danger mb-3">
+        <span class="alert-icon">❌</span>
+        <span id="login-error-text">E-mail ou senha incorretos.</span>
+      </div>
+
+      <button type="submit" class="btn-primary w-full" id="login-btn" style="justify-content:center;padding:12px;">
+        Entrar no sistema
+      </button>
+    </form>
+
+    <p style="text-align:center;margin-top:16px;font-size:12px;color:#9ca3af;">
+      Problemas para entrar? Fale com o administrador.
+    </p>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app" style="display:none;">
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo" id="sidebar-logo">A</div>
+      <div>
+        <div class="sidebar-brand" id="sidebar-agency-name">AgênciaOS</div>
+        <div class="sidebar-version">v1.0</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav" id="sidebar-nav">
+      <!-- Gerado dinamicamente pelo router baseado no role do usuário -->
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-card" id="user-profile-btn">
+        <div id="sidebar-avatar"></div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-user-name">Carregando...</div>
+          <div class="user-role" id="sidebar-user-role">—</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div id="main">
+    <!-- Topbar -->
+    <header id="topbar">
+      <button id="mobile-menu-btn" class="icon-btn" style="display:none;">☰</button>
+      <div>
+        <div class="topbar-title" id="topbar-title">Dashboard</div>
+        <div class="topbar-breadcrumb" id="topbar-breadcrumb">Visão geral</div>
+      </div>
+      <div class="topbar-spacer"></div>
+
+      <div class="topbar-actions">
+        <!-- Notificações de alertas -->
+        <button class="icon-btn" id="alerts-btn" title="Alertas">
+          🔔
+          <span class="badge" id="alerts-count" style="display:none;">0</span>
+        </button>
+
+        <!-- Inbox -->
+        <button class="icon-btn" id="inbox-nav-btn" title="Caixa de Entrada">
+          💬
+          <span class="badge" id="inbox-count" style="display:none;">0</span>
+        </button>
+
+        <!-- Logout -->
+        <button class="icon-btn" id="logout-btn" title="Sair">🚪</button>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main id="page-content">
+      <!-- Conteúdo carregado dinamicamente -->
+    </main>
+  </div>
+</div>
+
+<!-- Dropdown de Alertas -->
+<div id="alerts-dropdown" style="
+  display:none; position:fixed; top:68px; right:80px;
+  width:360px; background:white; border:1px solid #e5e7eb;
+  border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.12);
+  z-index:500; overflow:hidden;
+">
+  <div style="padding:14px 16px;border-bottom:1px solid #e5e7eb;font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center;">
+    🔔 Alertas
+    <button id="clear-alerts" style="font-size:11px;color:#6366f1;background:none;border:none;cursor:pointer;">Limpar todos</button>
+  </div>
+  <div id="alerts-list" style="max-height:400px;overflow-y:auto;padding:8px;">
+    <div style="text-align:center;padding:30px;color:#9ca3af;font-size:13px;">Sem alertas no momento ✅</div>
+  </div>
+</div>
+
+<!-- Modal de Perfil -->
+<div id="profile-modal" class="modal-overlay" style="display:none;">
+  <div class="modal modal-md">
+    <div class="modal-header">
+      <span class="modal-title">Meu Perfil</span>
+      <button class="modal-close" data-close="profile-modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;padding:16px;background:#f9fafb;border-radius:10px;">
+        <div id="profile-avatar-display" style="flex-shrink:0;"></div>
+        <div>
+          <div style="font-size:16px;font-weight:700;" id="profile-name-display"></div>
+          <div style="font-size:12px;color:#6b7280;" id="profile-role-display"></div>
+          <label for="avatar-upload" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:12px;color:#6366f1;cursor:pointer;font-weight:500;">
+            📷 Trocar foto
+          </label>
+          <input type="file" id="avatar-upload" accept="image/*" style="display:none;">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Nome completo</label>
+          <input type="text" id="profile-full-name" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone</label>
+          <input type="text" id="profile-phone" class="form-input" placeholder="(00) 00000-0000">
+        </div>
+      </div>
+      <div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:4px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:12px;">Alterar senha</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Nova senha</label>
+            <input type="password" id="new-password" class="form-input" placeholder="Deixe vazio para não alterar">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirmar senha</label>
+            <input type="password" id="confirm-password" class="form-input">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" data-close="profile-modal">Cancelar</button>
+      <button class="btn-primary" id="save-profile-btn">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- App JavaScript -->
+<script type="module">
+import { supabase, auth, setCurrentUser, setCurrentProfile, currentUser, currentProfile, logDB } from './js/supabase.js';
+import { ROUTES, ROUTE_PERMISSIONS, ROLE_LABELS } from './js/config.js';
+import { renderAvatar, showToast, formatPhone } from './js/utils.js';
+
+// Importar módulos de páginas
+import { renderDashboard } from './js/pages/dashboard.js';
+import { renderCRM } from './js/pages/crm.js';
+import { renderTasks } from './js/pages/tasks.js';
+import { renderTeam } from './js/pages/team.js';
+import { renderMonitoring } from './js/pages/monitoring.js';
+import { renderFinancial } from './js/pages/financial.js';
+import { renderInbox } from './js/pages/inbox.js';
+import { renderSettings } from './js/pages/settings.js';
+
+// ============================================================
+// ESTADO GLOBAL
+// ============================================================
+let _user = null;
+let _profile = null;
+let _agencyConfig = null;
+let _activeChannel = null;
+
+// ============================================================
+// INICIALIZAÇÃO
+// ============================================================
+async function init() {
+  try {
+    const session = await auth.getSession();
+    if (session?.user) {
+      await loginSuccess(session.user);
+    } else {
+      showLogin();
+    }
+  } catch (e) {
+    console.error('Init error:', e);
+    showLogin();
+  } finally {
+    document.getElementById('app-loading').style.display = 'none';
+  }
+}
+
+async function loginSuccess(user) {
+  _user = user;
+  setCurrentUser(user);
+
+  try {
+    _profile = await auth.getProfile(user.id);
+    setCurrentProfile(_profile);
+  } catch {
+    _profile = { id: user.id, full_name: user.email, role: 'collaborator' };
+  }
+
+  // Carregar config da agência
+  try {
+    const { data } = await supabase.from('system_config').select('value').eq('key', 'agency_info').single();
+    _agencyConfig = data?.value || {};
+  } catch { _agencyConfig = {}; }
+
+  setupAppUI();
+  await renderNav();
+  showApp();
+  navigate(getDefaultRoute());
+  setupRealtime();
+  loadAlerts();
+}
+
+function showLogin() {
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+}
+
+// ============================================================
+// SETUP UI
+// ============================================================
+function setupAppUI() {
+  const name = _agencyConfig?.name || 'AgênciaOS';
+  document.title = `${name} — Sistema de Gestão`;
+  document.getElementById('sidebar-agency-name').textContent = name;
+  document.getElementById('login-agency-name').textContent = name;
+  document.getElementById('sidebar-logo').textContent = name.charAt(0).toUpperCase();
+
+  // Avatar e info do usuário
+  document.getElementById('sidebar-avatar').innerHTML = renderAvatar(_profile, 34);
+  document.getElementById('sidebar-user-name').textContent = _profile?.full_name || 'Usuário';
+  document.getElementById('sidebar-user-role').textContent = ROLE_LABELS[_profile?.role] || '';
+}
+
+// ============================================================
+// NAVEGAÇÃO
+// ============================================================
+const NAV_ITEMS = [
+  {
+    section: 'Principal',
+    items: [
+      { route: 'dashboard', icon: '📊', label: 'Dashboard', roles: ['master','admin','manager','collaborator'] },
+      { route: 'inbox', icon: '💬', label: 'Caixa de Entrada', roles: ['master','admin','manager'], badge: 'inbox' },
+    ]
+  },
+  {
+    section: 'Clientes',
+    items: [
+      { route: 'crm', icon: '👥', label: 'Clientes & CRM', roles: ['master','admin','manager'] },
+      { route: 'monitoring', icon: '📈', label: 'Monitoramento', roles: ['master','admin','manager'] },
+    ]
+  },
+  {
+    section: 'Operação',
+    items: [
+      { route: 'tasks', icon: '📋', label: 'Demandas', roles: ['master','admin','manager','collaborator'] },
+      { route: 'calendar', icon: '📅', label: 'Calendário Editorial', roles: ['master','admin','manager','collaborator'] },
+    ]
+  },
+  {
+    section: 'Gestão',
+    items: [
+      { route: 'financial', icon: '💰', label: 'Financeiro', roles: ['master','admin'] },
+      { route: 'team', icon: '👤', label: 'Equipe', roles: ['master','admin'] },
+    ]
+  },
+  {
+    section: 'Sistema',
+    items: [
+      { route: 'ai-config', icon: '🤖', label: 'Pré-atendente IA', roles: ['master','admin'] },
+      { route: 'settings', icon: '⚙️', label: 'Configurações', roles: ['master'] },
+    ]
+  }
+];
+
+async function renderNav() {
+  const nav = document.getElementById('sidebar-nav');
+  const role = _profile?.role || 'collaborator';
+
+  nav.innerHTML = NAV_ITEMS.map(section => {
+    const visibleItems = section.items.filter(item => item.roles.includes(role));
+    if (!visibleItems.length) return '';
+    return `
+      <div class="nav-section">
+        <div class="nav-section-label">${section.section}</div>
+        ${visibleItems.map(item => `
+          <div class="nav-item" data-route="${item.route}" onclick="window.navigate('${item.route}')">
+            <span class="nav-icon">${item.icon}</span>
+            <span>${item.label}</span>
+            ${item.badge ? `<span class="nav-badge" id="nav-badge-${item.badge}" style="display:none;">0</span>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }).join('');
+}
+
+function getDefaultRoute() {
+  const role = _profile?.role;
+  if (['master', 'admin'].includes(role)) return 'dashboard';
+  if (role === 'manager') return 'dashboard';
+  return 'tasks';
+}
+
+// Roteador principal
+window.navigate = async function(route, params = {}) {
+  const role = _profile?.role || 'collaborator';
+  const allowed = ROUTE_PERMISSIONS[route] || [];
+
+  if (!allowed.includes(role)) {
+    showToast('Você não tem permissão para acessar esta página.', 'error');
+    return;
+  }
+
+  // Atualizar nav ativa
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.route === route);
+  });
+
+  // Atualizar topbar
+  const routeTitles = {
+    dashboard: ['Dashboard', 'Visão geral da agência'],
+    crm: ['Clientes & CRM', 'Gestão do ciclo de vida dos clientes'],
+    tasks: ['Demandas & Tarefas', 'Controle de produção e entregas'],
+    calendar: ['Calendário Editorial', 'Planejamento de conteúdo'],
+    team: ['Equipe', 'Gestão de colaboradores'],
+    monitoring: ['Monitoramento', 'Métricas e resultados dos clientes'],
+    financial: ['Financeiro', 'Contratos, pagamentos e cobrança'],
+    inbox: ['Caixa de Entrada', 'Atendimento omnichannel'],
+    settings: ['Configurações', 'Configurações do sistema'],
+    'ai-config': ['Pré-atendente IA', 'Base de conhecimento e configurações']
+  };
+
+  const [title, breadcrumb] = routeTitles[route] || [route, ''];
+  document.getElementById('topbar-title').textContent = title;
+  document.getElementById('topbar-breadcrumb').textContent = breadcrumb;
+
+  const content = document.getElementById('page-content');
+  content.innerHTML = `<div class="page-loader">${renderSpinner(32)} Carregando...</div>`;
+
+  try {
+    switch (route) {
+      case 'dashboard': await renderDashboard(content, _profile, _agencyConfig); break;
+      case 'crm': await renderCRM(content, _profile); break;
+      case 'tasks': await renderTasks(content, _profile); break;
+      case 'calendar': await renderTasks(content, _profile, { view: 'calendar' }); break;
+      case 'team': await renderTeam(content, _profile); break;
+      case 'monitoring': await renderMonitoring(content, _profile); break;
+      case 'financial': await renderFinancial(content, _profile); break;
+      case 'inbox': await renderInbox(content, _profile); break;
+      case 'settings': await renderSettings(content, _profile); break;
+      case 'ai-config': await renderSettings(content, _profile, { tab: 'ai' }); break;
+      default: content.innerHTML = '<div class="page-loader">Página não encontrada</div>';
+    }
+  } catch (e) {
+    console.error('Page render error:', e);
+    content.innerHTML = `
+      <div class="page-loader">
+        <div style="font-size:32px;">😕</div>
+        <div style="font-size:14px;font-weight:600;color:#374151;">Erro ao carregar a página</div>
+        <div style="font-size:12px;color:#6b7280;">${e.message}</div>
+        <button class="btn-primary btn-sm mt-3" onclick="window.navigate('${route}')">Tentar novamente</button>
+      </div>`;
+  }
+};
+
+function renderSpinner(size = 20) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" style="animation:spin 1s linear infinite;"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>`;
+}
+
+// ============================================================
+// LOGIN FORM
+// ============================================================
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  const btn = document.getElementById('login-btn');
+  const errorDiv = document.getElementById('login-error');
+
+  btn.disabled = true;
+  btn.innerHTML = `${renderSpinner(16)} Entrando...`;
+  errorDiv.style.display = 'none';
+
+  try {
+    const { user } = await auth.signIn(email, password);
+    await loginSuccess(user);
+    await logDB.log('login', 'auth', user.id, email, {});
+  } catch (err) {
+    errorDiv.style.display = 'flex';
+    document.getElementById('login-error-text').textContent =
+      err.message.includes('Invalid') ? 'E-mail ou senha incorretos.' : err.message;
+    btn.disabled = false;
+    btn.innerHTML = 'Entrar no sistema';
+  }
+});
+
+document.getElementById('toggle-password').addEventListener('click', () => {
+  const input = document.getElementById('login-password');
+  input.type = input.type === 'password' ? 'text' : 'password';
+});
+
+// ============================================================
+// LOGOUT
+// ============================================================
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  if (confirm('Deseja realmente sair?')) {
+    if (_activeChannel) supabase.removeChannel(_activeChannel);
+    await auth.signOut();
+    _user = null; _profile = null;
+    showLogin();
+    showToast('Até logo! 👋', 'info');
+  }
+});
+
+// ============================================================
+// ALERTAS
+// ============================================================
+async function loadAlerts() {
+  const alerts = [];
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const in3days = new Date(now.getTime() + 3 * 86400000).toISOString().split('T')[0];
+
+  if (['master', 'admin'].includes(_profile?.role)) {
+    // Pagamentos vencendo
+    const { data: overdue } = await supabase.from('financial_payments')
+      .select('amount, client:clients(name), due_date')
+      .eq('status', 'overdue').limit(5);
+    overdue?.forEach(p => alerts.push({
+      type: 'danger', icon: '🔴',
+      text: `<strong>${p.client?.name}</strong> — Pagamento de R$ ${p.amount?.toFixed(2)} em atraso`,
+      time: p.due_date
+    }));
+
+    // Tarefas atrasadas
+    const { data: overdueTasks } = await supabase.from('tasks')
+      .select('title, client:clients(name)')
+      .lt('due_date', today)
+      .not('status', 'in', '("done","cancelled")')
+      .limit(5);
+    overdueTasks?.forEach(t => alerts.push({
+      type: 'warning', icon: '⚠️',
+      text: `Tarefa atrasada: <strong>${t.title}</strong> (${t.client?.name || 'Interno'})`,
+    }));
+  }
+
+  // Minhas aprovações pendentes
+  const { data: pendingApprovals } = await supabase.from('tasks')
+    .select('title, client:clients(name)')
+    .eq('status', 'approval')
+    .contains('assigned_to', [_profile.id])
+    .limit(5);
+  pendingApprovals?.forEach(t => alerts.push({
+    type: 'info', icon: '✔️',
+    text: `Aguarda sua aprovação: <strong>${t.title}</strong>`,
+  }));
+
+  if (alerts.length > 0) {
+    const countEl = document.getElementById('alerts-count');
+    countEl.textContent = alerts.length;
+    countEl.style.display = 'block';
+  }
+
+  const alertsList = document.getElementById('alerts-list');
+  if (alerts.length === 0) {
+    alertsList.innerHTML = '<div style="text-align:center;padding:30px;color:#9ca3af;font-size:13px;">Sem alertas no momento ✅</div>';
+  } else {
+    alertsList.innerHTML = alerts.map(a => `
+      <div class="alert alert-${a.type}" style="margin-bottom:8px;">
+        <span>${a.icon}</span>
+        <span style="font-size:12px;">${a.text}</span>
+      </div>
+    `).join('');
+  }
+}
+
+document.getElementById('alerts-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const dd = document.getElementById('alerts-dropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+});
+
+document.addEventListener('click', () => {
+  document.getElementById('alerts-dropdown').style.display = 'none';
+});
+
+document.getElementById('clear-alerts').addEventListener('click', () => {
+  document.getElementById('alerts-count').style.display = 'none';
+  document.getElementById('alerts-list').innerHTML = '<div style="text-align:center;padding:30px;color:#9ca3af;font-size:13px;">Sem alertas no momento ✅</div>';
+  document.getElementById('alerts-dropdown').style.display = 'none';
+});
+
+// ============================================================
+// PROFILE MODAL
+// ============================================================
+document.getElementById('user-profile-btn').addEventListener('click', () => {
+  if (!_profile) return;
+  document.getElementById('profile-avatar-display').innerHTML = renderAvatar(_profile, 56);
+  document.getElementById('profile-name-display').textContent = _profile.full_name || '';
+  document.getElementById('profile-role-display').textContent = ROLE_LABELS[_profile.role] || '';
+  document.getElementById('profile-full-name').value = _profile.full_name || '';
+  document.getElementById('profile-phone').value = formatPhone(_profile.phone || '');
+  document.getElementById('profile-modal').style.display = 'flex';
+});
+
+document.getElementById('save-profile-btn').addEventListener('click', async () => {
+  const fullName = document.getElementById('profile-full-name').value.trim();
+  const phone = document.getElementById('profile-phone').value.trim();
+  const newPass = document.getElementById('new-password').value;
+  const confirmPass = document.getElementById('confirm-password').value;
+
+  if (newPass && newPass !== confirmPass) {
+    showToast('As senhas não conferem.', 'error'); return;
+  }
+
+  try {
+    _profile = await auth.updateProfile(_profile.id, { full_name: fullName, phone });
+    setCurrentProfile(_profile);
+    setupAppUI();
+    if (newPass) await auth.updatePassword(newPass);
+    document.getElementById('profile-modal').style.display = 'none';
+    showToast('Perfil atualizado com sucesso!', 'success');
+    await logDB.log('update_profile', 'profile', _profile.id, fullName);
+  } catch (e) {
+    showToast('Erro ao salvar: ' + e.message, 'error');
+  }
+});
+
+document.getElementById('avatar-upload').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    showToast('Enviando foto...', 'info', 2000);
+    const url = await auth.uploadAvatar(_profile.id, file);
+    _profile = await auth.updateProfile(_profile.id, { avatar_url: url });
+    setCurrentProfile(_profile);
+    document.getElementById('profile-avatar-display').innerHTML = renderAvatar(_profile, 56);
+    setupAppUI();
+    showToast('Foto atualizada!', 'success');
+  } catch (e) {
+    showToast('Erro ao enviar foto: ' + e.message, 'error');
+  }
+});
+
+// ============================================================
+// INBOX NAV BUTTON
+// ============================================================
+document.getElementById('inbox-nav-btn').addEventListener('click', () => {
+  window.navigate('inbox');
+});
+
+// ============================================================
+// MODAL CLOSE
+// ============================================================
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.getElementById(btn.dataset.close).style.display = 'none';
+  });
+});
+
+document.querySelectorAll('.modal-overlay').forEach(modal => {
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
+});
+
+// ============================================================
+// MOBILE MENU
+// ============================================================
+const mobileBtn = document.getElementById('mobile-menu-btn');
+if (window.innerWidth <= 768) mobileBtn.style.display = 'flex';
+mobileBtn.addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('open');
+});
+
+// ============================================================
+// REALTIME (notificações em tempo real)
+// ============================================================
+function setupRealtime() {
+  _activeChannel = supabase
+    .channel('app-notifications')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+      const msg = payload.new;
+      if (msg.direction === 'inbound') {
+        const current = parseInt(document.getElementById('inbox-count').textContent || '0');
+        const countEl = document.getElementById('inbox-count');
+        countEl.textContent = current + 1;
+        countEl.style.display = 'block';
+        const navBadge = document.getElementById('nav-badge-inbox');
+        if (navBadge) { navBadge.textContent = current + 1; navBadge.style.display = 'block'; }
+      }
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'financial_payments' }, (payload) => {
+      if (payload.new.status === 'overdue' && ['master', 'admin'].includes(_profile?.role)) {
+        showToast(`⚠️ Pagamento vencido detectado`, 'warning');
+        loadAlerts();
+      }
+    })
+    .subscribe();
+}
+
+// Supabase Auth State Changes
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_OUT') {
+    showLogin();
+  } else if (event === 'TOKEN_REFRESHED' && session) {
+    // Token renovado silenciosamente
+  }
+});
+
+// ============================================================
+// INICIALIZAR
+// ============================================================
+init();
+</script>
+</body>
+</html>
