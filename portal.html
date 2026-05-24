@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ficha de Identificação — AgênciaOS</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --primary: #1a2744;
+      --primary-light: #243560;
+      --accent: #c9a84c;
+      --accent-light: #e8c96a;
+      --success: #10b981;
+      --danger: #ef4444;
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .portal-header {
+      background: var(--primary);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+    .portal-logo {
+      width: 44px; height: 44px;
+      background: var(--accent);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 18px; color: var(--primary);
+    }
+    .portal-title { color: white; }
+    .portal-title h1 { font-size: 18px; font-weight: 700; }
+    .portal-title p { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+
+    /* PROGRESS */
+    .progress-bar {
+      background: var(--primary);
+      padding: 0 24px 16px;
+    }
+    .progress-track {
+      height: 4px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 4px;
+      transition: width 0.4s ease;
+    }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+    .progress-label span {
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+    }
+
+    /* MAIN */
+    .portal-main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+    }
+
+    /* LOADING / ERROR / SUCCESS SCREENS */
+    .screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      text-align: center;
+      padding: 40px 24px;
+    }
+    .screen-icon {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+      margin-bottom: 24px;
+    }
+    .screen-icon.loading { background: #e0e7ff; animation: pulse 1.5s ease-in-out infinite; }
+    .screen-icon.error { background: #fee2e2; }
+    .screen-icon.success { background: #d1fae5; }
+    .screen h2 { font-size: 24px; font-weight: 700; margin-bottom: 12px; }
+    .screen p { color: var(--text-muted); font-size: 15px; max-width: 400px; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+    /* WELCOME CARD */
+    .welcome-card {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      border-radius: var(--radius);
+      padding: 32px;
+      color: white;
+      margin-bottom: 32px;
+    }
+    .welcome-card .badge {
+      display: inline-block;
+      background: var(--accent);
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+    .welcome-card h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .welcome-card p { color: rgba(255,255,255,0.75); font-size: 14px; line-height: 1.6; }
+
+    /* SECTIONS STEPPER */
+    .sections-nav {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .section-dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: default;
+      transition: all 0.2s;
+    }
+    .section-dot.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+    .section-dot.done {
+      background: var(--success);
+      border-color: var(--success);
+      color: white;
+    }
+
+    /* FORM SECTION CARD */
+    .form-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .section-header {
+      background: var(--primary);
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .section-number {
+      width: 36px; height: 36px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+    .section-header-text h3 {
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .section-header-text p {
+      color: rgba(255,255,255,0.65);
+      font-size: 13px;
+      margin-top: 2px;
+    }
+    .section-body { padding: 24px; }
+
+    /* FORM ELEMENTS */
+    .form-group { margin-bottom: 20px; }
+    .form-group:last-child { margin-bottom: 0; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    label .optional {
+      font-weight: 400;
+      color: var(--text-muted);
+      font-size: 12px;
+      margin-left: 4px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--text);
+      background: white;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(26,39,68,0.08);
+    }
+    textarea { resize: vertical; min-height: 88px; line-height: 1.5; }
+
+    /* CHECKBOX GROUP */
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .checkbox-item:hover { border-color: var(--primary); background: #f8faff; }
+    .checkbox-item.checked {
+      border-color: var(--primary);
+      background: #eef2ff;
+    }
+    .checkbox-item input[type="checkbox"] {
+      width: 16px; height: 16px;
+      accent-color: var(--primary);
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .checkbox-item span {
+      font-size: 14px;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    /* RADIO GROUP */
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .radio-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .radio-item:hover { border-color: var(--primary); background: #f8faff; }
+    .radio-item.selected {
+      border-color: var(--primary);
+      background: #eef2ff;
+    }
+    .radio-item input[type="radio"] {
+      width: 16px; height: 16px;
+      margin-top: 1px;
+      accent-color: var(--primary);
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .radio-item-text span {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      display: block;
+    }
+    .radio-item-text small {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* NAVIGATION BUTTONS */
+    .form-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 32px;
+      gap: 12px;
+    }
+    .btn {
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); }
+    .btn-secondary {
+      background: white;
+      color: var(--text);
+      border: 1.5px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-accent {
+      background: var(--accent);
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .btn-accent:hover { background: var(--accent-light); transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+
+    /* SAVE STATUS */
+    .save-status {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--primary);
+      color: white;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      z-index: 999;
+    }
+    .save-status.show { display: flex; }
+
+    /* DIVIDER */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 20px 0;
+    }
+
+    /* HINT TEXT */
+    .hint { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+    /* THANK YOU */
+    .thank-you {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 48px 40px;
+      text-align: center;
+    }
+    .thank-you .icon { font-size: 56px; margin-bottom: 20px; }
+    .thank-you h2 { font-size: 26px; font-weight: 800; color: var(--primary); margin-bottom: 12px; }
+    .thank-you p { color: var(--text-muted); font-size: 15px; line-height: 1.6; max-width: 420px; margin: 0 auto; }
+    .thank-you .next-steps {
+      background: #f8faff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 28px;
+      text-align: left;
+    }
+    .thank-you .next-steps h4 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 12px; }
+    .thank-you .step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; font-size: 14px; }
+    .thank-you .step-num { width: 22px; height: 22px; background: var(--primary); color: white; border-radius: 50%; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Loading initial -->
+  <div id="screen-loading" class="screen" style="min-height:100vh">
+    <div class="screen-icon loading">⏳</div>
+    <h2>Carregando...</h2>
+    <p>Verificando seu link de acesso</p>
+  </div>
+</div>
+
+<div id="save-status" class="save-status">
+  <span id="save-status-text">Salvando...</span>
+</div>
+
+<script type="module">
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './js/config.js';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ─── Estado ────────────────────────────────────────────────
+const state = {
+  token: null,
+  clientId: null,
+  clientName: null,
+  tokenId: null,
+  currentStep: 0,
+  formData: {},
+  submitted: false
+};
+
+const STEPS = [
+  { num: '1', title: 'Informações da Empresa', desc: 'Dados básicos do seu negócio' },
+  { num: '2', title: 'Sobre o Negócio', desc: 'Conte-nos sobre sua empresa' },
+  { num: '3', title: 'Objetivos com Redes Sociais', desc: 'O que você espera alcançar' },
+  { num: '4', title: 'Público-Alvo Ideal', desc: 'Quem é seu cliente ideal' },
+  { num: '5', title: 'Concorrência e Referências', desc: 'Mercado e inspirações' },
+  { num: '6', title: 'Posicionamento da Marca', desc: 'Como sua marca deve ser percebida' },
+  { num: '7', title: 'Conteúdo a Produzir', desc: 'Tipos e preferências de conteúdo' },
+  { num: '8', title: 'Estrutura da Empresa', desc: 'Recursos disponíveis' },
+  { num: '9', title: 'Processo e Prazos', desc: 'Organização e aprovações' },
+  { num: '10', title: 'Produtos e Serviços', desc: 'O que você oferece' },
+  { num: '11', title: 'Resultados Esperados', desc: 'Definindo o sucesso' },
+  { num: '12', title: 'Considerações Finais', desc: 'Informações adicionais' }
+];
+
+// ─── Init ────────────────────────────────────────────────
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  state.token = params.get('token');
+
+  if (!state.token) {
+    showError('Link inválido', 'Este link não contém um token de acesso válido. Verifique com sua agência.');
+    return;
+  }
+
+  try {
+    const { data, error } = await db.rpc('get_client_by_token', { p_token: state.token });
+    if (error || !data || data.length === 0) {
+      showError('Link expirado ou inválido', 'Este link não é mais válido ou já expirou. Entre em contato com sua agência para receber um novo link.');
+      return;
+    }
+
+    const row = data[0];
+    state.clientId = row.client_id;
+    state.clientName = row.client_name;
+    state.tokenId = row.token_id;
+
+    // Preenche dados existentes se já tiver preenchido antes
+    if (row.form_data && Object.keys(row.form_data).length > 0) {
+      state.formData = row.form_data;
+    }
+
+    renderPortal();
+  } catch (e) {
+    showError('Erro de conexão', 'Não foi possível conectar. Tente novamente em alguns instantes.');
+  }
+}
+
+// ─── Render portal ─────────────────────────────────────────
+function renderPortal() {
+  document.getElementById('app').innerHTML = `
+    <div id="portal-header" class="portal-header">
+      <div class="portal-logo">A</div>
+      <div class="portal-title">
+        <h1>Ficha de Identificação</h1>
+        <p>Olá, ${state.clientName}! Preencha as informações abaixo.</p>
+      </div>
+    </div>
+    <div id="portal-progress" class="progress-bar">
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill" style="width:${Math.round(((state.currentStep+1)/STEPS.length)*100)}%"></div>
+      </div>
+      <div class="progress-label">
+        <span id="progress-label-left">Seção ${state.currentStep+1} de ${STEPS.length}</span>
+        <span id="progress-label-right">${Math.round(((state.currentStep+1)/STEPS.length)*100)}% concluído</span>
+      </div>
+    </div>
+    <div class="portal-main">
+      <div class="sections-nav" id="sections-nav"></div>
+      <div id="form-content"></div>
+      <div class="form-nav" id="form-nav"></div>
+    </div>
+  `;
+
+  renderStep();
+}
+
+function updateProgress() {
+  const pct = Math.round(((state.currentStep+1)/STEPS.length)*100);
+  const fill = document.getElementById('progress-fill');
+  const labelLeft = document.getElementById('progress-label-left');
+  const labelRight = document.getElementById('progress-label-right');
+  if (fill) fill.style.width = pct + '%';
+  if (labelLeft) labelLeft.textContent = `Seção ${state.currentStep+1} de ${STEPS.length}`;
+  if (labelRight) labelRight.textContent = `${pct}% concluído`;
+}
+
+function renderStep() {
+  updateProgress();
+
+  // Dots
+  const nav = document.getElementById('sections-nav');
+  if (nav) {
+    nav.innerHTML = STEPS.map((s, i) => `
+      <div class="section-dot ${i < state.currentStep ? 'done' : i === state.currentStep ? 'active' : ''}" title="Seção ${s.num}: ${s.title}">
+        ${i < state.currentStep ? '✓' : s.num}
+      </div>
+    `).join('');
+  }
+
+  // Content
+  const content = document.getElementById('form-content');
+  const step = STEPS[state.currentStep];
+  if (content) {
+    content.innerHTML = `
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-number">${step.num}</div>
+          <div class="section-header-text">
+            <h3>${step.title}</h3>
+            <p>${step.desc}</p>
+          </div>
+        </div>
+        <div class="section-body" id="step-body">
+          ${renderStepFields(state.currentStep)}
+        </div>
+      </div>
+    `;
+    // Restore values
+    restoreValues(state.currentStep);
+    bindCheckboxes();
+  }
+
+  // Nav buttons
+  const formNav = document.getElementById('form-nav');
+  if (formNav) {
+    const isLast = state.currentStep === STEPS.length - 1;
+    formNav.innerHTML = `
+      ${state.currentStep > 0 ? `<button class="btn btn-secondary" onclick="prevStep()">← Anterior</button>` : '<div></div>'}
+      ${isLast
+        ? `<button class="btn btn-accent" onclick="submitForm()" id="btn-submit">✓ Enviar Ficha</button>`
+        : `<button class="btn btn-primary" onclick="nextStep()">Próximo →</button>`
+      }
+    `;
+  }
+}
+
+function renderStepFields(step) {
+  const d = state.formData;
+  switch(step) {
+    case 0: return `
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nome da empresa</label>
+          <input type="text" id="f_company_name" placeholder="Razão social ou nome fantasia" value="${d.company_name||''}">
+        </div>
+        <div class="form-group">
+          <label>CNPJ <span class="optional">(opcional)</span></label>
+          <input type="text" id="f_cnpj" placeholder="00.000.000/0001-00" value="${d.cnpj||''}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nome do responsável</label>
+          <input type="text" id="f_responsible_name" placeholder="Nome completo" value="${d.responsible_name||''}">
+        </div>
+        <div class="form-group">
+          <label>Cargo</label>
+          <input type="text" id="f_responsible_role" placeholder="Ex: CEO, Sócia, Gerente..." value="${d.responsible_role||''}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Telefone</label>
+          <input type="tel" id="f_phone" placeholder="(00) 0000-0000" value="${d.phone||''}">
+        </div>
+        <div class="form-group">
+          <label>WhatsApp</label>
+          <input type="tel" id="f_whatsapp" placeholder="(00) 00000-0000" value="${d.whatsapp||''}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>E-mail</label>
+          <input type="email" id="f_email" placeholder="contato@empresa.com" value="${d.email||''}">
+        </div>
+        <div class="form-group">
+          <label>Cidade / Estado</label>
+          <input type="text" id="f_city_state" placeholder="Ex: São Paulo / SP" value="${d.city_state||''}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Site <span class="optional">(opcional)</span></label>
+          <input type="text" id="f_website" placeholder="www.suaempresa.com.br" value="${d.website||''}">
+        </div>
+        <div class="form-group">
+          <label>Instagram <span class="optional">(opcional)</span></label>
+          <input type="text" id="f_instagram" placeholder="@suaempresa" value="${d.instagram||''}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Outras redes sociais <span class="optional">(opcional)</span></label>
+        <input type="text" id="f_other_social_media" placeholder="Facebook, TikTok, LinkedIn..." value="${d.other_social_media||''}">
+      </div>`;
+
+    case 1: return `
+      <div class="form-group">
+        <label>Há quanto tempo a empresa existe?</label>
+        <input type="text" id="f_company_age" placeholder="Ex: 3 anos, desde 2018..." value="${d.company_age||''}">
+      </div>
+      <div class="form-group">
+        <label>O que sua empresa faz? Descreva brevemente.</label>
+        <textarea id="f_business_description" placeholder="Descreva seus principais produtos ou serviços, como funciona seu negócio...">${d.business_description||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Qual é o maior diferencial da sua empresa?</label>
+        <textarea id="f_main_differential" placeholder="O que te destaca da concorrência?">${d.main_differential||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Como você descreveria sua marca?</label>
+        <input type="text" id="f_brand_personality" placeholder="Ex: sofisticada, acessível, divertida, técnica, acolhedora..." value="${d.brand_personality||''}">
+      </div>
+      <div class="form-group">
+        <label>O que sua empresa resolve na vida do cliente?</label>
+        <textarea id="f_client_solution" placeholder="Qual problema ou necessidade você atende?">${d.client_solution||''}</textarea>
+      </div>`;
+
+    case 2: return `
+      <div class="form-group">
+        <label>Qual é o principal objetivo ao contratar gestão de redes sociais?</label>
+        <div class="checkbox-group" id="social_goals_group">
+          ${[
+            ['attract_clients','Atrair novos clientes'],
+            ['strengthen_brand','Fortalecer marca'],
+            ['sell_more','Vender mais'],
+            ['authority','Autoridade / credibilidade'],
+            ['relationship','Relacionamento com público']
+          ].map(([val,label]) => `
+            <label class="checkbox-item" id="ci_${val}">
+              <input type="checkbox" value="${val}" class="cb-social-goals" ${(d.social_goals||[]).includes(val)?'checked':''}>
+              <span>${label}</span>
+            </label>
+          `).join('')}
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Outro objetivo <span class="optional">(opcional)</span></label>
+          <input type="text" id="f_social_goals_other" placeholder="Descreva..." value="${d.social_goals_other||''}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Quais metas você gostaria de alcançar nos próximos 6 meses?</label>
+        <textarea id="f_six_month_goals" placeholder="Ex: crescer 1000 seguidores, gerar 20 leads por mês, aumentar vendas em 30%...">${d.six_month_goals||''}</textarea>
+      </div>`;
+
+    case 3: return `
+      <div class="form-group">
+        <label>Quem é seu cliente ideal?</label>
+        <textarea id="f_ideal_client" placeholder="Descreva detalhadamente quem é a pessoa que compra de você...">${d.ideal_client||''}</textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Faixa etária média</label>
+          <input type="text" id="f_age_range" placeholder="Ex: 25 a 45 anos" value="${d.age_range||''}">
+        </div>
+        <div class="form-group">
+          <label>Gênero predominante</label>
+          <input type="text" id="f_predominant_gender" placeholder="Ex: Feminino, Masculino, Ambos..." value="${d.predominant_gender||''}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cidades / Região</label>
+          <input type="text" id="f_region" placeholder="Ex: São Paulo e Grande SP" value="${d.region||''}">
+        </div>
+        <div class="form-group">
+          <label>Renda aproximada do público</label>
+          <input type="text" id="f_audience_income" placeholder="Ex: Classe B/C, R$3.000-R$8.000/mês" value="${d.audience_income||''}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>O que esse público valoriza?</label>
+        <textarea id="f_audience_values" placeholder="Quais são os valores, estilo de vida, prioridades desse público?">${d.audience_values||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Que dores, problemas ou desejos esse público tem?</label>
+        <textarea id="f_audience_pain_points" placeholder="O que mantém esse cliente acordado à noite? O que ele mais deseja?">${d.audience_pain_points||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Cite exemplos de clientes ideais <span class="optional">(opcional)</span></label>
+        <textarea id="f_ideal_client_examples" placeholder="Descreva 1-3 clientes reais que seriam perfeitos para você...">${d.ideal_client_examples||''}</textarea>
+      </div>`;
+
+    case 4: return `
+      <div class="form-group">
+        <label>Quem são seus principais concorrentes?</label>
+        <textarea id="f_main_competitors" placeholder="Liste 2-5 concorrentes diretos ou similares...">${d.main_competitors||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>O que você admira neles? <span class="optional">(opcional)</span></label>
+        <textarea id="f_competitor_admiration" placeholder="Alguma coisa que eles fazem bem que te inspira?">${d.competitor_admiration||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Existe algum perfil que você usa como referência? <span class="optional">(opcional)</span></label>
+        <input type="text" id="f_profile_references" placeholder="Ex: @marca1, @marca2 — o que você gosta neles?" value="${d.profile_references||''}">
+      </div>
+      <div class="form-group">
+        <label>O que você NÃO quer nas redes sociais?</label>
+        <textarea id="f_what_not_to_do" placeholder="Estilos, linguagens, temas ou abordagens que você quer evitar...">${d.what_not_to_do||''}</textarea>
+      </div>`;
+
+    case 5: return `
+      <div class="form-group">
+        <label>Como deseja que sua marca seja percebida?</label>
+        <div class="checkbox-group" id="brand_perception_group">
+          ${[
+            ['professional','Profissional'],['technical','Técnica'],['fun','Divertida'],
+            ['humanized','Humanizada'],['luxury','Luxuosa'],['popular','Popular'],
+            ['welcoming','Acolhedora'],['youthful','Jovial']
+          ].map(([val,label]) => `
+            <label class="checkbox-item" id="ci_bp_${val}">
+              <input type="checkbox" value="${val}" class="cb-brand-perception" ${(d.brand_perception||[]).includes(val)?'checked':''}>
+              <span>${label}</span>
+            </label>
+          `).join('')}
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Outro estilo <span class="optional">(opcional)</span></label>
+          <input type="text" id="f_brand_perception_other" placeholder="Descreva..." value="${d.brand_perception_other||''}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Existe alguma restrição de comunicação? <span class="optional">(opcional)</span></label>
+        <textarea id="f_communication_restrictions" placeholder="Ex: não falar de política, evitar comparações com concorrentes...">${d.communication_restrictions||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Palavras que representam sua marca</label>
+        <input type="text" id="f_brand_words" placeholder="Ex: confiança, inovação, família, qualidade, resultado..." value="${d.brand_words||''}">
+      </div>`;
+
+    case 6: return `
+      <div class="form-group">
+        <label>Você tem disponibilidade para gravar conteúdos?</label>
+        <div class="radio-group">
+          ${[
+            ['appears_talking','Sim, apareço falando','Tenho disposição para aparecer em vídeos e fotos'],
+            ['low_exposure','Sim, mas com pouca exposição','Apareço pouco, prefiro bastidores ou imagens'],
+            ['prefers_not','Prefiro não aparecer','Conteúdo institucional sem o dono em destaque']
+          ].map(([val,label,desc]) => `
+            <label class="radio-item ${d.content_availability===val?'selected':''}" id="ri_${val}">
+              <input type="radio" name="content_availability" value="${val}" ${d.content_availability===val?'checked':''}>
+              <div class="radio-item-text"><span>${label}</span><small>${desc}</small></div>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Tipos de conteúdos que deseja produzir</label>
+        <div class="checkbox-group">
+          ${[
+            ['educational','Educativos — dicas, tutoriais, informações do seu setor'],
+            ['backstage','Bastidores — processo de trabalho, equipe, dia a dia'],
+            ['social_proof','Provas sociais — depoimentos, resultados, antes e depois'],
+            ['promotional','Promocionais — ofertas, lançamentos, campanhas'],
+            ['institutional','Institucionais — valores, história, diferenciais da empresa'],
+            ['trends','Tendências / Reels — conteúdos virais adaptados']
+          ].map(([val,label]) => `
+            <label class="checkbox-item" id="ci_ct_${val}">
+              <input type="checkbox" value="${val}" class="cb-content-types" ${(d.content_types||[]).includes(val)?'checked':''}>
+              <span>${label}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Tem ideias de temas que gostaria de abordar? <span class="optional">(opcional)</span></label>
+        <textarea id="f_content_topics" placeholder="Pautas, assuntos ou datas específicas que quer ver nas redes...">${d.content_topics||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Tem algo que NUNCA quer postar?</label>
+        <textarea id="f_content_never" placeholder="Temas, imagens, linguagens que devem ser evitados...">${d.content_never||''}</textarea>
+      </div>`;
+
+    case 7: return `
+      <div class="form-row">
+        <div class="form-group">
+          <label>Possui equipe comercial?</label>
+          <input type="text" id="f_has_sales_team" placeholder="Sim / Não / Parcial..." value="${d.has_sales_team||''}">
+        </div>
+        <div class="form-group">
+          <label>Possui banco de imagens?</label>
+          <input type="text" id="f_has_image_bank" placeholder="Sim, temos fotos profissionais / Não..." value="${d.has_image_bank||''}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Como funciona hoje a captação de clientes?</label>
+        <textarea id="f_current_acquisition" placeholder="Indicação, anúncios, redes sociais, eventos, porta a porta...">${d.current_acquisition||''}</textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Possui identidade visual?</label>
+          <input type="text" id="f_has_visual_identity" placeholder="Sim, completa / Parcial / Não..." value="${d.has_visual_identity||''}">
+        </div>
+        <div class="form-group">
+          <label>Possui logotipo em boa qualidade?</label>
+          <input type="text" id="f_has_logo" placeholder="Sim, em vetor / Sim, apenas PNG / Não..." value="${d.has_logo||''}">
+        </div>
+      </div>`;
+
+    case 8: return `
+      <div class="form-row">
+        <div class="form-group">
+          <label>Melhor dia e horário para gravação?</label>
+          <input type="text" id="f_best_recording_time" placeholder="Ex: Terças à tarde, Sábados pela manhã..." value="${d.best_recording_time||''}">
+        </div>
+        <div class="form-group">
+          <label>Frequência ideal de postagens esperada?</label>
+          <input type="text" id="f_posting_frequency" placeholder="Ex: 1x por dia, 3x por semana..." value="${d.posting_frequency||''}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Quem será o responsável pela aprovação?</label>
+          <input type="text" id="f_approval_responsible" placeholder="Nome e cargo da pessoa que aprova..." value="${d.approval_responsible||''}">
+        </div>
+        <div class="form-group">
+          <label>Tempo médio para aprovar conteúdos?</label>
+          <input type="text" id="f_approval_time" placeholder="Ex: até 24h, 48h úteis..." value="${d.approval_time||''}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Existe algum cronograma fixo importante? <span class="optional">(opcional)</span></label>
+        <textarea id="f_fixed_schedule" placeholder="Datas comemorativas do setor, eventos sazonais, campanhas anuais...">${d.fixed_schedule||''}</textarea>
+      </div>`;
+
+    case 9: return `
+      <div class="form-group">
+        <label>Principais produtos / serviços vendidos</label>
+        <textarea id="f_main_products" placeholder="Liste seus principais produtos ou serviços, um por linha...">${d.main_products||''}</textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Ticket médio aproximado</label>
+          <input type="text" id="f_average_ticket" placeholder="Ex: R$150, R$2.000, R$500-R$3.000..." value="${d.average_ticket||''}">
+        </div>
+        <div class="form-group">
+          <label>Serviços mais lucrativos</label>
+          <input type="text" id="f_most_profitable_services" placeholder="Quais trazem mais margem?" value="${d.most_profitable_services||''}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Serviços que deseja divulgar mais</label>
+        <textarea id="f_services_to_promote" placeholder="O que você quer que as redes ajudem a vender mais?">${d.services_to_promote||''}</textarea>
+      </div>`;
+
+    case 10: return `
+      <div class="form-group">
+        <label>Como saberemos que a estratégia deu certo para você?</label>
+        <textarea id="f_success_definition" placeholder="Quais indicadores ou resultados mostrarão que está funcionando?">${d.success_definition||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>O que significará sucesso nas redes sociais para sua empresa?</label>
+        <textarea id="f_social_success_meaning" placeholder="Mais seguidores? Mais vendas? Mais reconhecimento? Descreva...">${d.social_success_meaning||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>O que é prioridade no curto prazo?</label>
+        <textarea id="f_short_term_priority" placeholder="Nos próximos 30-60 dias, o que é mais urgente para você?">${d.short_term_priority||''}</textarea>
+      </div>`;
+
+    case 11: return `
+      <div class="form-group">
+        <label>Existe alguma informação importante que não foi perguntada? <span class="optional">(opcional)</span></label>
+        <textarea id="f_additional_info" style="min-height:140px" placeholder="Use este espaço para nos contar qualquer coisa que acha relevante: histórias da empresa, particularidades do setor, parcerias, projetos especiais...">${d.additional_info||''}</textarea>
+        <p class="hint">Esta é sua chance de nos contar tudo que não coubesse nas perguntas anteriores.</p>
+      </div>
+      <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:16px;margin-top:8px">
+        <p style="font-size:13px;color:#92400e;line-height:1.6">
+          ✅ <strong>Você está na última seção!</strong> Após clicar em "Enviar Ficha", suas respostas serão salvas e nossa equipe receberá uma notificação. Em breve entraremos em contato para iniciar o planejamento estratégico.
+        </p>
+      </div>`;
+
+    default: return '';
+  }
+}
+
+// ─── Restore values from state ─────────────────────────────
+function restoreValues(step) {
+  const d = state.formData;
+  // Radios
+  document.querySelectorAll('input[type="radio"]').forEach(r => {
+    r.addEventListener('change', () => {
+      document.querySelectorAll(`input[name="${r.name}"]`).forEach(x => {
+        x.closest('.radio-item')?.classList.remove('selected');
+      });
+      r.closest('.radio-item')?.classList.add('selected');
+    });
+  });
+}
+
+function bindCheckboxes() {
+  document.querySelectorAll('.checkbox-item').forEach(item => {
+    const cb = item.querySelector('input[type="checkbox"]');
+    if (cb) {
+      const update = () => item.classList.toggle('checked', cb.checked);
+      update();
+      cb.addEventListener('change', update);
+    }
+  });
+}
+
+// ─── Collect current step values ───────────────────────────
+function collectStep(step) {
+  const get = id => document.getElementById(id)?.value?.trim() || '';
+  const getChecks = cls => [...document.querySelectorAll(`.${cls}:checked`)].map(c => c.value);
+
+  switch(step) {
+    case 0:
+      Object.assign(state.formData, {
+        company_name: get('f_company_name'), cnpj: get('f_cnpj'),
+        responsible_name: get('f_responsible_name'), responsible_role: get('f_responsible_role'),
+        phone: get('f_phone'), whatsapp: get('f_whatsapp'), email: get('f_email'),
+        city_state: get('f_city_state'), website: get('f_website'),
+        instagram: get('f_instagram'), other_social_media: get('f_other_social_media')
+      }); break;
+    case 1:
+      Object.assign(state.formData, {
+        company_age: get('f_company_age'), business_description: get('f_business_description'),
+        main_differential: get('f_main_differential'), brand_personality: get('f_brand_personality'),
+        client_solution: get('f_client_solution')
+      }); break;
+    case 2:
+      Object.assign(state.formData, {
+        social_goals: getChecks('cb-social-goals'),
+        social_goals_other: get('f_social_goals_other'), six_month_goals: get('f_six_month_goals')
+      }); break;
+    case 3:
+      Object.assign(state.formData, {
+        ideal_client: get('f_ideal_client'), age_range: get('f_age_range'),
+        predominant_gender: get('f_predominant_gender'), region: get('f_region'),
+        audience_income: get('f_audience_income'), audience_values: get('f_audience_values'),
+        audience_pain_points: get('f_audience_pain_points'),
+        ideal_client_examples: get('f_ideal_client_examples')
+      }); break;
+    case 4:
+      Object.assign(state.formData, {
+        main_competitors: get('f_main_competitors'), competitor_admiration: get('f_competitor_admiration'),
+        profile_references: get('f_profile_references'), what_not_to_do: get('f_what_not_to_do')
+      }); break;
+    case 5:
+      Object.assign(state.formData, {
+        brand_perception: getChecks('cb-brand-perception'),
+        brand_perception_other: get('f_brand_perception_other'),
+        communication_restrictions: get('f_communication_restrictions'),
+        brand_words: get('f_brand_words')
+      }); break;
+    case 6:
+      Object.assign(state.formData, {
+        content_availability: document.querySelector('input[name="content_availability"]:checked')?.value || '',
+        content_types: getChecks('cb-content-types'),
+        content_topics: get('f_content_topics'), content_never: get('f_content_never')
+      }); break;
+    case 7:
+      Object.assign(state.formData, {
+        has_sales_team: get('f_has_sales_team'), has_image_bank: get('f_has_image_bank'),
+        current_acquisition: get('f_current_acquisition'),
+        has_visual_identity: get('f_has_visual_identity'), has_logo: get('f_has_logo')
+      }); break;
+    case 8:
+      Object.assign(state.formData, {
+        best_recording_time: get('f_best_recording_time'), posting_frequency: get('f_posting_frequency'),
+        approval_responsible: get('f_approval_responsible'), approval_time: get('f_approval_time'),
+        fixed_schedule: get('f_fixed_schedule')
+      }); break;
+    case 9:
+      Object.assign(state.formData, {
+        main_products: get('f_main_products'), average_ticket: get('f_average_ticket'),
+        most_profitable_services: get('f_most_profitable_services'),
+        services_to_promote: get('f_services_to_promote')
+      }); break;
+    case 10:
+      Object.assign(state.formData, {
+        success_definition: get('f_success_definition'),
+        social_success_meaning: get('f_social_success_meaning'),
+        short_term_priority: get('f_short_term_priority')
+      }); break;
+    case 11:
+      Object.assign(state.formData, { additional_info: get('f_additional_info') }); break;
+  }
+}
+
+// ─── Navigation ─────────────────────────────────────────────
+window.nextStep = function() {
+  collectStep(state.currentStep);
+  autoSave();
+  if (state.currentStep < STEPS.length - 1) {
+    state.currentStep++;
+    renderStep();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+};
+
+window.prevStep = function() {
+  collectStep(state.currentStep);
+  if (state.currentStep > 0) {
+    state.currentStep--;
+    renderStep();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+};
+
+// ─── Auto-save ──────────────────────────────────────────────
+async function autoSave() {
+  try {
+    await db.rpc('save_form_by_token', {
+      p_token: state.token,
+      p_form_data: state.formData
+    });
+  } catch(e) {}
+}
+
+function showSaveStatus(msg, duration = 2000) {
+  const el = document.getElementById('save-status');
+  const txt = document.getElementById('save-status-text');
+  if (el && txt) {
+    txt.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), duration);
+  }
+}
+
+// ─── Submit ─────────────────────────────────────────────────
+window.submitForm = async function() {
+  collectStep(state.currentStep);
+  const btn = document.getElementById('btn-submit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+
+  try {
+    const { data, error } = await db.rpc('save_form_by_token', {
+      p_token: state.token,
+      p_form_data: state.formData
+    });
+
+    if (error || (data && !data.success)) {
+      if (btn) { btn.disabled = false; btn.textContent = '✓ Enviar Ficha'; }
+      alert('Erro ao enviar. Tente novamente.');
+      return;
+    }
+
+    // Show thank you
+    document.getElementById('portal-progress')?.remove();
+    document.querySelector('.portal-main').innerHTML = `
+      <div class="thank-you">
+        <div class="icon">🎉</div>
+        <h2>Ficha enviada com sucesso!</h2>
+        <p>Obrigado por preencher todas as informações. Nossa equipe vai analisar tudo com cuidado e em breve entraremos em contato para iniciar o planejamento da sua estratégia digital.</p>
+        <div class="next-steps">
+          <h4>Próximos passos</h4>
+          <div class="step"><div class="step-num">1</div><span>Nossa equipe analisa suas respostas</span></div>
+          <div class="step"><div class="step-num">2</div><span>Realizamos uma reunião de alinhamento estratégico</span></div>
+          <div class="step"><div class="step-num">3</div><span>Desenvolvemos o planejamento personalizado para você</span></div>
+          <div class="step"><div class="step-num">4</div><span>Iniciamos a produção dos conteúdos</span></div>
+        </div>
+      </div>
+    `;
+    document.querySelector('.portal-header p').textContent = 'Ficha preenchida com sucesso ✓';
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Enviar Ficha'; }
+    alert('Erro ao enviar. Verifique sua conexão e tente novamente.');
+  }
+};
+
+// ─── Error screens ───────────────────────────────────────────
+function showError(title, msg) {
+  document.getElementById('app').innerHTML = `
+    <div style="background:#1a2744;padding:20px 24px;display:flex;align-items:center;gap:16px">
+      <div style="width:44px;height:44px;background:#c9a84c;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#1a2744">A</div>
+      <div style="color:white"><strong>AgênciaOS</strong></div>
+    </div>
+    <div class="screen">
+      <div class="screen-icon error">❌</div>
+      <h2>${title}</h2>
+      <p>${msg}</p>
+    </div>
+  `;
+}
+
+// ─── Start ───────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

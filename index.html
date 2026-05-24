@@ -225,6 +225,8 @@ import { renderAvatar, showToast, formatPhone } from './js/utils.js';
 // Importar módulos de páginas
 import { renderDashboard } from './js/pages/dashboard.js';
 import { renderCRM } from './js/pages/crm.js';
+import { renderClients } from './js/pages/clients.js';
+import { renderSupport } from './js/pages/support.js';
 import { renderTasks } from './js/pages/tasks.js';
 import { renderTeam } from './js/pages/team.js';
 import { renderMonitoring } from './js/pages/monitoring.js';
@@ -324,7 +326,9 @@ const NAV_ITEMS = [
   {
     section: 'Clientes',
     items: [
-      { route: 'crm', icon: '👥', label: 'Clientes & CRM', roles: ['master','admin','manager'] },
+      { route: 'clients', icon: '👥', label: 'Clientes', roles: ['master','admin','manager','collaborator'] },
+      { route: 'crm', icon: '🎯', label: 'CRM & Pipeline', roles: ['master','admin','manager'] },
+      { route: 'support', icon: '🎫', label: 'Suporte', roles: ['master','admin','manager','collaborator'], badge: 'support' },
       { route: 'monitoring', icon: '📈', label: 'Monitoramento', roles: ['master','admin','manager'] },
     ]
   },
@@ -398,7 +402,9 @@ window.navigate = async function(route, params = {}) {
   // Atualizar topbar
   const routeTitles = {
     dashboard: ['Dashboard', 'Visão geral da agência'],
-    crm: ['Clientes & CRM', 'Gestão do ciclo de vida dos clientes'],
+    clients: ['Clientes', 'Cadastros, fichas e informações completas'],
+    crm: ['CRM & Pipeline', 'Gestão do ciclo de vida e funil de vendas'],
+    support: ['Suporte', 'Tickets e atendimento aos clientes'],
     tasks: ['Demandas & Tarefas', 'Controle de produção e entregas'],
     calendar: ['Calendário Editorial', 'Planejamento de conteúdo'],
     team: ['Equipe', 'Gestão de colaboradores'],
@@ -419,7 +425,9 @@ window.navigate = async function(route, params = {}) {
   try {
     switch (route) {
       case 'dashboard': await renderDashboard(content, _profile, _agencyConfig); break;
+      case 'clients': await renderClients(content, _profile); break;
       case 'crm': await renderCRM(content, _profile); break;
+      case 'support': await renderSupport(content, _profile); break;
       case 'tasks': await renderTasks(content, _profile); break;
       case 'calendar': await renderTasks(content, _profile, { view: 'calendar' }); break;
       case 'team': await renderTeam(content, _profile); break;

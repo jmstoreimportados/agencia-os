@@ -163,8 +163,9 @@ export const MONTHS = [
 export const ROUTES = {
   LOGIN: 'login',
   DASHBOARD: 'dashboard',
+  CLIENTS: 'clients',
   CRM: 'crm',
-  CLIENT: 'client',
+  SUPPORT: 'support',
   TASKS: 'tasks',
   CALENDAR: 'calendar',
   TEAM: 'team',
@@ -178,8 +179,9 @@ export const ROUTES = {
 // Permissões por rota
 export const ROUTE_PERMISSIONS = {
   dashboard: ['master', 'admin', 'manager', 'collaborator'],
+  clients: ['master', 'admin', 'manager', 'collaborator'],
   crm: ['master', 'admin', 'manager'],
-  client: ['master', 'admin', 'manager', 'collaborator'],
+  support: ['master', 'admin', 'manager', 'collaborator'],
   tasks: ['master', 'admin', 'manager', 'collaborator'],
   calendar: ['master', 'admin', 'manager', 'collaborator'],
   team: ['master', 'admin'],
