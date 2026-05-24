@@ -1,7 +1,7 @@
 // ============================================================
 // MÓDULO CLIENTES — Cadastro, Ficha de Identificação, Portal
 // ============================================================
-import { db } from '../supabase.js';
+import { supabase as db } from '../supabase.js';
 import { formatDate, timeAgo, showToast, showConfirm, renderSpinner, renderEmptyState, formatPhone, formatCNPJ } from '../utils.js';
 import { CLIENT_STATUS_LABELS, SERVICES } from '../config.js';
 

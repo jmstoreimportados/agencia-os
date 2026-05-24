@@ -1,7 +1,7 @@
 // ============================================================
 // MÓDULO SUPORTE — Tickets e Atendimento ao Cliente
 // ============================================================
-import { db } from '../supabase.js';
+import { supabase as db } from '../supabase.js';
 import { formatDate, timeAgo, showToast, showConfirm, renderSpinner, renderEmptyState } from '../utils.js';
 
 let allTickets = [];
