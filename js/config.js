@@ -33,23 +33,41 @@ export const ROLE_HIERARCHY = {
   collaborator: 1
 };
 
-// Status dos clientes
+// ─── STATUS DOS CLIENTES (já contratados) ────────────────────
+// Leads ficam SOMENTE no CRM. Aqui são apenas clientes ativos.
 export const CLIENT_STATUS = {
-  LEAD: 'lead',
-  PROPOSAL: 'proposal',
   ONBOARDING: 'onboarding',
   ACTIVE: 'active',
   AT_RISK: 'at_risk',
+  PAUSED: 'paused',
   CHURNED: 'churned'
 };
 
 export const CLIENT_STATUS_LABELS = {
-  lead: { label: 'Lead', color: '#3b82f6', bg: '#eff6ff', icon: '🎯' },
-  proposal: { label: 'Proposta Enviada', color: '#8b5cf6', bg: '#f5f3ff', icon: '📄' },
-  onboarding: { label: 'Onboarding', color: '#f59e0b', bg: '#fffbeb', icon: '🚀' },
-  active: { label: 'Ativo', color: '#10b981', bg: '#f0fdf4', icon: '✅' },
-  at_risk: { label: 'Em Risco', color: '#f97316', bg: '#fff7ed', icon: '⚠️' },
-  churned: { label: 'Encerrado', color: '#ef4444', bg: '#fef2f2', icon: '🔴' }
+  onboarding: { label: 'Onboarding',   color: '#f59e0b', bg: '#fffbeb', icon: '🚀' },
+  active:     { label: 'Ativo',         color: '#10b981', bg: '#f0fdf4', icon: '✅' },
+  at_risk:    { label: 'Em Risco',      color: '#f97316', bg: '#fff7ed', icon: '⚠️' },
+  paused:     { label: 'Pausado',       color: '#6b7280', bg: '#f9fafb', icon: '⏸️' },
+  churned:    { label: 'Encerrado',     color: '#ef4444', bg: '#fef2f2', icon: '🔴' }
+};
+
+// ─── STATUS DOS LEADS no CRM ─────────────────────────────────
+export const LEAD_STATUS = {
+  NEW: 'new',
+  CONTACTED: 'contacted',
+  PROPOSAL: 'proposal',
+  NEGOTIATION: 'negotiation',
+  WON: 'won',
+  LOST: 'lost'
+};
+
+export const LEAD_STATUS_LABELS = {
+  new:         { label: 'Novo Lead',        color: '#3b82f6', bg: '#eff6ff', icon: '🎯' },
+  contacted:   { label: 'Contatado',        color: '#8b5cf6', bg: '#f5f3ff', icon: '📞' },
+  proposal:    { label: 'Proposta Enviada', color: '#f59e0b', bg: '#fffbeb', icon: '📄' },
+  negotiation: { label: 'Em Negociação',   color: '#0ea5e9', bg: '#f0f9ff', icon: '🤝' },
+  won:         { label: 'Ganho ✓',         color: '#10b981', bg: '#f0fdf4', icon: '🏆' },
+  lost:        { label: 'Perdido',          color: '#ef4444', bg: '#fef2f2', icon: '❌' }
 };
 
 // Status das tarefas

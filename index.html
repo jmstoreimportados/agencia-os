@@ -26,27 +26,45 @@
     /* Loading screen */
     #app-loading {
       position: fixed; inset: 0;
-      background: white; z-index: 9999;
+      background: #1A0530;
+      background-image: radial-gradient(circle at 30% 50%, rgba(155,30,200,0.2) 0%, transparent 60%);
+      z-index: 9999;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      gap: 16px;
+      gap: 20px;
     }
     .loading-logo {
-      width: 64px; height: 64px; background: #6366f1;
-      border-radius: 18px; display: flex;
+      width: 72px; height: 72px; background: #9B1EC8;
+      border-radius: 20px; display: flex;
       align-items: center; justify-content: center;
-      color: white; font-weight: 800; font-size: 26px;
+      color: white; font-weight: 800; font-size: 28px;
       animation: pulse 1.5s ease infinite;
+      box-shadow: 0 0 40px rgba(155,30,200,0.5);
+      overflow: hidden;
     }
-    .loading-text { font-size: 13px; color: #9ca3af; }
+    .loading-logo img { width: 100%; height: 100%; object-fit: contain; }
+    .loading-text { font-size: 14px; color: rgba(255,255,255,0.5); font-family: 'Inter', sans-serif; }
+    .loading-bar {
+      width: 200px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;
+    }
+    .loading-bar-fill {
+      height: 100%; background: #9B1EC8; border-radius: 3px;
+      animation: loading-progress 1.5s ease infinite;
+    }
+    @keyframes loading-progress {
+      0% { width: 0%; margin-left: 0; }
+      50% { width: 70%; margin-left: 0; }
+      100% { width: 0%; margin-left: 100%; }
+    }
   </style>
 </head>
 <body>
 
 <!-- Loading screen -->
 <div id="app-loading">
-  <div class="loading-logo">A</div>
-  <div class="loading-text">Carregando AgênciaOS...</div>
+  <div class="loading-logo" id="loading-logo-el">A</div>
+  <div class="loading-text">Carregando sistema...</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
 </div>
 
 <!-- Login Page -->
@@ -300,17 +318,43 @@ function showApp() {
 // SETUP UI
 // ============================================================
 function setupAppUI() {
-  const name = _agencyConfig?.name || 'AgênciaOS';
+  const name    = _agencyConfig?.name     || 'AgênciaOS';
+  const logoUrl = _agencyConfig?.logo_url || null;
+  const initial = name.charAt(0).toUpperCase();
+
   document.title = `${name} — Sistema de Gestão`;
   document.getElementById('sidebar-agency-name').textContent = name;
-  document.getElementById('login-agency-name').textContent = name;
-  document.getElementById('sidebar-logo').textContent = name.charAt(0).toUpperCase();
+  document.getElementById('login-agency-name').textContent   = name;
+
+  // White label: logo ou inicial
+  const sidebarLogo = document.getElementById('sidebar-logo');
+  const loginLogo   = document.querySelector('.login-logo .logo-mark');
+  const loadingLogo = document.getElementById('loading-logo-el');
+
+  if (logoUrl) {
+    sidebarLogo.innerHTML = `<img src="${logoUrl}" alt="${name}">`;
+    if (loginLogo)   loginLogo.innerHTML   = `<img src="${logoUrl}" alt="${name}" style="border-radius:12px">`;
+    if (loadingLogo) loadingLogo.innerHTML = `<img src="${logoUrl}" alt="${name}">`;
+  } else {
+    sidebarLogo.textContent = initial;
+    if (loginLogo)   loginLogo.textContent   = initial;
+    if (loadingLogo) loadingLogo.textContent = initial;
+  }
 
   // Avatar e info do usuário
   document.getElementById('sidebar-avatar').innerHTML = renderAvatar(_profile, 34);
   document.getElementById('sidebar-user-name').textContent = _profile?.full_name || 'Usuário';
   document.getElementById('sidebar-user-role').textContent = ROLE_LABELS[_profile?.role] || '';
 }
+
+// Expor globalmente para o settings.js atualizar sem recarregar
+window.refreshAgencyConfig = async function() {
+  try {
+    const { data } = await supabase.from('system_config').select('value').eq('key', 'agency_info').single();
+    _agencyConfig = data?.value || {};
+    setupAppUI();
+  } catch {}
+};
 
 // ============================================================
 // NAVEGAÇÃO
