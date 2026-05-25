@@ -847,6 +847,7 @@ function renderStatusActions(task, profile) {
     if (s === 'approval') {
       buttons.push(`<button class="btn-primary btn-sm" data-action="approve">✅ Aprovar / Concluir</button>`);
       buttons.push(`<button class="btn-danger btn-sm" data-action="reject">❌ Rejeitar</button>`);
+      buttons.push(`<button class="btn-secondary btn-sm" data-action="generate-approval-link">🔗 Link p/ Cliente</button>`);
     }
     if (s === 'briefing') {
       buttons.push(`<button class="btn-secondary btn-sm" data-action="start-production">▶️ Iniciar Produção</button>`);
@@ -878,6 +879,11 @@ function bindStatusActionEvents(task, profile, overlay) {
 
     if (action === 'reject') {
       document.getElementById('reject-feedback-area').style.display = 'block';
+      return;
+    }
+
+    if (action === 'generate-approval-link') {
+      openApprovalBatchModal(task, profile);
       return;
     }
 
@@ -970,12 +976,108 @@ function openGenerateRecurringModal() {
       const count = await tasksDB.generateRecurring(month, year);
       showToast(`${count} tarefas geradas para ${MONTHS[month-1]}/${year}!`, 'success');
       overlay.remove();
-      // Reload tasks
-      allTasks = await tasksDB.getAll();
       renderView();
-    } catch (err) {
+    } catch(err) {
       showToast('Erro: ' + err.message, 'error');
       btn.textContent = '⚡ Gerar'; btn.disabled = false;
     }
   });
+}
+
+// ============================================================
+// APPROVAL BATCH MODAL — Gerar Link para Cliente
+// ============================================================
+async function openApprovalBatchModal(task, profile) {
+  const client = allClients.find(c => c.id === task.client_id);
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal modal-sm" style="max-width:480px;">
+      <div class="modal-header" style="background:linear-gradient(135deg,#1A0530,#4A1070);border-radius:12px 12px 0 0;">
+        <h2 class="modal-title" style="color:#EFC219;">🔗 Link de Aprovação</h2>
+        <button class="modal-close" id="close-appr" style="color:rgba(255,255,255,.6);">✕</button>
+      </div>
+      <div class="modal-body" style="padding:24px;">
+        <div style="text-align:center;padding:20px;color:var(--text-secondary);">⏳ Gerando link...</div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#close-appr').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  try {
+    const { supabase } = await import('../supabase.js');
+    const now = new Date();
+
+    const { data: batch, error: batchErr } = await supabase
+      .from('content_approval_batches')
+      .insert({
+        client_id: task.client_id,
+        title: `Aprovação — ${task.title}`,
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
+        created_by: profile?.id || null
+      })
+      .select()
+      .single();
+    if (batchErr) throw batchErr;
+
+    await supabase.from('content_approval_items').insert({
+      batch_id: batch.id,
+      task_id: task.id,
+      title: task.title,
+      description: task.description || null,
+      platform: task.platforms?.[0] || 'other',
+      media_url: task.reference_url || null,
+      caption: task.brief || null,
+      scheduled_date: task.due_date || null
+    });
+
+    const link = `${window.location.origin}/approval.html?token=${batch.token}`;
+    const phone = (client?.whatsapp || client?.phone || '').replace(/\D/g, '');
+    const msgText =
+      `Olá, ${client?.contact_name || client?.name || 'cliente'}! Seus conteúdos estão prontos para aprovação.\n\n` +
+      `Acesse o link para revisar e aprovar:\n${link}\n\n` +
+      `Qualquer dúvida, estamos à disposição!`;
+    const waLink = phone
+      ? `https://wa.me/55${phone}?text=${encodeURIComponent(msgText)}`
+      : `https://wa.me/?text=${encodeURIComponent(msgText)}`;
+
+    overlay.querySelector('.modal-body').innerHTML = `
+      <div style="margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Link de Aprovação</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="approval-link-input" value="${link}" readonly
+            style="flex:1;padding:10px 12px;border-radius:8px;border:1.5px solid var(--primary);font-size:12px;background:#f9f6ff;color:var(--primary);font-weight:600;">
+          <button id="btn-copy-link" class="btn-secondary btn-sm">Copiar</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;">Válido por 30 dias. O cliente não precisa fazer login.</div>
+      </div>
+      <div style="background:var(--surface-2);border-radius:10px;padding:12px;margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;">Mensagem pré-formatada</div>
+        <div style="font-size:12px;white-space:pre-wrap;line-height:1.6;">${msgText}</div>
+      </div>
+      ${!phone ? `<div style="font-size:11px;color:#92400e;padding:8px 12px;background:#fffbeb;border-radius:6px;border-left:3px solid #f59e0b;">Nenhum WhatsApp cadastrado para este cliente.</div>` : `<div style="font-size:12px;color:var(--text-secondary);">Enviar para: <strong>+55 ${phone}</strong></div>`}
+    `;
+
+    const footer = document.createElement('div');
+    footer.className = 'modal-footer';
+    footer.style.gap = '8px';
+    footer.innerHTML = `
+      <button class="btn-secondary" id="close-appr-2">Fechar</button>
+      <button id="btn-wa-appr" style="background:#25d366;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+        Enviar WhatsApp
+      </button>
+    `;
+    overlay.querySelector('.modal').appendChild(footer);
+    overlay.querySelector('#btn-copy-link').addEventListener('click', () => {
+      navigator.clipboard.writeText(link).then(() => showToast('Link copiado!', 'success'));
+    });
+    overlay.querySelector('#close-appr-2').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#btn-wa-appr').addEventListener('click', () => { window.open(waLink, '_blank'); overlay.remove(); });
+
+  } catch(err) {
+    overlay.querySelector('.modal-body').innerHTML = `<div style="color:#ef4444;padding:20px;">Erro ao gerar link: ${err.message}</div>`;
+  }
 }

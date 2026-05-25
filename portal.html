@@ -406,6 +406,120 @@
     .thank-you .next-steps h4 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 12px; }
     .thank-you .step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; font-size: 14px; }
     .thank-you .step-num { width: 22px; height: 22px; background: var(--primary); color: white; border-radius: 50%; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+
+    /* ─── MAIN MENU ───────────────────────────────────────── */
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .menu-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .menu-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(26,39,68,0.12);
+    }
+    .menu-card-icon {
+      font-size: 36px;
+      line-height: 1;
+    }
+    .menu-card h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .menu-card p {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    .menu-card.highlight {
+      border-color: var(--accent);
+      background: #fffbf0;
+    }
+    /* ─── NPS ────────────────────────────────────────────── */
+    .nps-buttons {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    .nps-btn {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: white;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--text);
+    }
+    .nps-btn:hover { transform: scale(1.15); }
+    .nps-btn.selected { border-color: transparent; color: white; transform: scale(1.15); }
+    /* ─── BACK BUTTON ────────────────────────────────────── */
+    .back-to-menu {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: 1.5px solid rgba(255,255,255,0.3);
+      border-radius: 8px;
+      color: rgba(255,255,255,0.85);
+      background: rgba(255,255,255,0.1);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-left: auto;
+    }
+    .back-to-menu:hover {
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
+    /* ─── KPI CARDS ──────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .kpi-card .kpi-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+    .kpi-card .kpi-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -489,6 +603,54 @@ async function init() {
 
 // ─── Render portal ─────────────────────────────────────────
 function renderPortal() {
+  showMainMenu();
+}
+
+// ─── Main Menu ──────────────────────────────────────────────
+window.showMainMenu = function showMainMenu() {
+  document.getElementById('app').innerHTML = `
+    <div id="portal-header" class="portal-header">
+      <div class="portal-logo">A</div>
+      <div class="portal-title">
+        <h1>Área do Cliente</h1>
+        <p>Olá, ${state.clientName}! O que deseja fazer?</p>
+      </div>
+    </div>
+    <div class="portal-main">
+      <div class="welcome-card" style="margin-bottom:24px">
+        <div class="badge">Portal do Cliente</div>
+        <h2>Bem-vindo(a), ${state.clientName}!</h2>
+        <p>Aqui você pode preencher sua ficha de identificação, acompanhar suas métricas, aprovar conteúdos e avaliar nosso atendimento.</p>
+      </div>
+      <div class="menu-grid">
+        <div class="menu-card highlight" onclick="showFormSection()">
+          <div class="menu-card-icon">📋</div>
+          <h3>Ficha de Identificação</h3>
+          <p>Preencha ou atualize seus dados e informações da empresa</p>
+        </div>
+        <div class="menu-card" onclick="showMetricsSection()">
+          <div class="menu-card-icon">📊</div>
+          <h3>Minhas Métricas</h3>
+          <p>Acompanhe os resultados do seu monitoramento mensal</p>
+        </div>
+        <div class="menu-card" onclick="showApprovalSection()">
+          <div class="menu-card-icon">✅</div>
+          <h3>Aprovar Conteúdo</h3>
+          <p>Revise e aprove os lotes de conteúdo pendentes</p>
+        </div>
+        <div class="menu-card" onclick="showNpsSection()">
+          <div class="menu-card-icon">⭐</div>
+          <h3>Avaliar Atendimento</h3>
+          <p>Nos dê sua nota e ajude a melhorar nossos serviços</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ─── Form section (existing form) ──────────────────────────
+window.showFormSection = function() {
+  state.currentStep = 0;
   document.getElementById('app').innerHTML = `
     <div id="portal-header" class="portal-header">
       <div class="portal-logo">A</div>
@@ -496,6 +658,7 @@ function renderPortal() {
         <h1>Ficha de Identificação</h1>
         <p>Olá, ${state.clientName}! Preencha as informações abaixo.</p>
       </div>
+      <button class="back-to-menu" onclick="showMainMenu()">← Voltar ao Menu</button>
     </div>
     <div id="portal-progress" class="progress-bar">
       <div class="progress-track">
@@ -512,9 +675,269 @@ function renderPortal() {
       <div class="form-nav" id="form-nav"></div>
     </div>
   `;
-
   renderStep();
-}
+};
+
+// ─── Metrics section ────────────────────────────────────────
+window.showMetricsSection = async function() {
+  document.getElementById('app').innerHTML = `
+    <div id="portal-header" class="portal-header">
+      <div class="portal-logo">A</div>
+      <div class="portal-title">
+        <h1>Minhas Métricas</h1>
+        <p>Resultados do monitoramento mensal</p>
+      </div>
+      <button class="back-to-menu" onclick="showMainMenu()">← Voltar ao Menu</button>
+    </div>
+    <div class="portal-main">
+      <div id="metrics-content">
+        <div class="screen-icon loading" style="margin:40px auto">⏳</div>
+        <p style="text-align:center;color:var(--text-muted)">Carregando métricas...</p>
+      </div>
+    </div>
+  `;
+  try {
+    const { data, error } = await db
+      .from('monitoring_data')
+      .select('*')
+      .eq('client_id', state.clientId)
+      .order('year', { ascending: false })
+      .order('month', { ascending: false })
+      .limit(1);
+
+    const mc = document.getElementById('metrics-content');
+    if (!mc) return;
+
+    if (error || !data || data.length === 0) {
+      mc.innerHTML = `
+        <div class="screen">
+          <div class="screen-icon" style="background:#e0e7ff">📊</div>
+          <h2>Sem dados disponíveis</h2>
+          <p>Ainda não há métricas registradas para sua conta. Em breve você verá seus resultados aqui.</p>
+        </div>`;
+      return;
+    }
+
+    const m = data[0];
+    const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const monthLabel = m.month ? monthNames[m.month - 1] : '—';
+
+    const kpiField = (label, value, icon) => value != null ? `
+      <div class="kpi-card">
+        <div class="kpi-value">${icon ? icon + ' ' : ''}${typeof value === 'number' ? value.toLocaleString('pt-BR') : value}</div>
+        <div class="kpi-label">${label}</div>
+      </div>` : '';
+
+    mc.innerHTML = `
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-number">📊</div>
+          <div class="section-header-text">
+            <h3>Resultados — ${monthLabel}/${m.year || ''}</h3>
+            <p>Último período com dados disponíveis</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="kpi-grid">
+            ${kpiField('Seguidores', m.followers, '')}
+            ${kpiField('Novos Seguidores', m.new_followers, '+')}
+            ${kpiField('Alcance', m.reach, '')}
+            ${kpiField('Impressões', m.impressions, '')}
+            ${kpiField('Engajamento', m.engagement_rate != null ? m.engagement_rate + '%' : null, '')}
+            ${kpiField('Curtidas', m.likes, '❤️')}
+            ${kpiField('Comentários', m.comments, '💬')}
+            ${kpiField('Compartilhamentos', m.shares, '🔁')}
+            ${kpiField('Cliques no Perfil', m.profile_clicks, '👆')}
+            ${kpiField('Posts Publicados', m.posts_count, '📝')}
+          </div>
+          ${m.notes ? `<div style="margin-top:20px;padding:16px;background:#f8faff;border:1px solid var(--border);border-radius:8px"><strong style="font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted)">Observações da equipe</strong><p style="margin-top:6px;font-size:14px;color:var(--text);line-height:1.6">${m.notes}</p></div>` : ''}
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    const mc = document.getElementById('metrics-content');
+    if (mc) mc.innerHTML = `<div class="screen"><div class="screen-icon error">❌</div><h2>Erro ao carregar</h2><p>Não foi possível buscar as métricas. Tente novamente.</p></div>`;
+  }
+};
+
+// ─── NPS section ────────────────────────────────────────────
+window.showNpsSection = function() {
+  let selectedScore = null;
+  const now = new Date();
+
+  document.getElementById('app').innerHTML = `
+    <div id="portal-header" class="portal-header">
+      <div class="portal-logo">A</div>
+      <div class="portal-title">
+        <h1>Avaliar Atendimento</h1>
+        <p>Sua opinião nos ajuda a melhorar</p>
+      </div>
+      <button class="back-to-menu" onclick="showMainMenu()">← Voltar ao Menu</button>
+    </div>
+    <div class="portal-main">
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-number">⭐</div>
+          <div class="section-header-text">
+            <h3>Como você avalia nosso atendimento?</h3>
+            <p>De 0 (muito ruim) a 10 (excelente)</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <p style="text-align:center;font-size:14px;color:var(--text-muted);margin-bottom:8px">Escolha sua nota:</p>
+          <div class="nps-buttons" id="nps-buttons">
+            ${[0,1,2,3,4,5,6,7,8,9,10].map(n => {
+              const bg = n <= 6 ? '#ef4444' : n <= 8 ? '#f59e0b' : '#10b981';
+              const emoji = n <= 6 ? '😞' : n <= 8 ? '😐' : '😊';
+              return `<button class="nps-btn" data-score="${n}" onclick="window._npsSelect(${n},'${bg}')"
+                style="border-color:${bg}20;background:${bg}15;color:${bg}" title="${emoji} ${n}">
+                ${n}
+              </button>`;
+            }).join('')}
+          </div>
+          <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-bottom:20px">
+            🔴 0–6 Detrator &nbsp;|&nbsp; 🟡 7–8 Neutro &nbsp;|&nbsp; 🟢 9–10 Promotor
+          </p>
+          <div class="form-group">
+            <label>Comentário <span class="optional">(opcional)</span></label>
+            <textarea id="nps_comment" placeholder="Conte-nos mais sobre sua experiência..." style="min-height:100px"></textarea>
+          </div>
+          <div id="nps-feedback" style="display:none;padding:12px;border-radius:8px;font-size:13px;margin-bottom:12px"></div>
+          <button class="btn btn-primary" id="btn-nps-submit" onclick="window._npsSubmit()" style="width:100%" disabled>
+            Enviar Avaliação
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  window._npsSelect = function(score, color) {
+    selectedScore = score;
+    document.querySelectorAll('.nps-btn').forEach(btn => btn.classList.remove('selected'));
+    const btn = document.querySelector(`.nps-btn[data-score="${score}"]`);
+    if (btn) { btn.classList.add('selected'); btn.style.background = color; }
+    const submitBtn = document.getElementById('btn-nps-submit');
+    if (submitBtn) submitBtn.disabled = false;
+  };
+
+  window._npsSubmit = async function() {
+    if (selectedScore === null) return;
+    const comment = document.getElementById('nps_comment')?.value?.trim() || '';
+    const submitBtn = document.getElementById('btn-nps-submit');
+    const feedback = document.getElementById('nps-feedback');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Enviando...'; }
+
+    try {
+      const { error } = await db.from('client_nps').insert({
+        client_id: state.clientId,
+        score: selectedScore,
+        comment: comment || null,
+        month: now.getMonth() + 1,
+        year: now.getFullYear()
+      });
+      if (error) throw error;
+      if (feedback) {
+        const emoji = selectedScore <= 6 ? '😞' : selectedScore <= 8 ? '😐' : '🎉';
+        feedback.style.display = 'block';
+        feedback.style.background = '#d1fae5';
+        feedback.style.border = '1px solid #10b981';
+        feedback.style.color = '#065f46';
+        feedback.innerHTML = `${emoji} <strong>Avaliação enviada!</strong> Obrigado pelo seu feedback. Nota: ${selectedScore}/10`;
+      }
+      if (submitBtn) submitBtn.style.display = 'none';
+    } catch(e) {
+      if (feedback) {
+        feedback.style.display = 'block';
+        feedback.style.background = '#fee2e2';
+        feedback.style.border = '1px solid #ef4444';
+        feedback.style.color = '#7f1d1d';
+        feedback.innerHTML = '❌ Erro ao enviar avaliação. Tente novamente.';
+      }
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Enviar Avaliação'; }
+    }
+  };
+};
+
+// ─── Content Approval section ────────────────────────────────
+window.showApprovalSection = async function() {
+  document.getElementById('app').innerHTML = `
+    <div id="portal-header" class="portal-header">
+      <div class="portal-logo">A</div>
+      <div class="portal-title">
+        <h1>Aprovar Conteúdo</h1>
+        <p>Lotes de conteúdo aguardando sua aprovação</p>
+      </div>
+      <button class="back-to-menu" onclick="showMainMenu()">← Voltar ao Menu</button>
+    </div>
+    <div class="portal-main">
+      <div id="approval-content">
+        <div class="screen-icon loading" style="margin:40px auto">⏳</div>
+        <p style="text-align:center;color:var(--text-muted)">Carregando lotes...</p>
+      </div>
+    </div>
+  `;
+  try {
+    const { data, error } = await db
+      .from('content_approval_batches')
+      .select('*')
+      .eq('client_id', state.clientId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const ac = document.getElementById('approval-content');
+    if (!ac) return;
+
+    if (error || !data || data.length === 0) {
+      ac.innerHTML = `
+        <div class="screen">
+          <div class="screen-icon" style="background:#d1fae5">✅</div>
+          <h2>Tudo em dia!</h2>
+          <p>Não há lotes de conteúdo pendentes para aprovação no momento.</p>
+        </div>`;
+      return;
+    }
+
+    const origin = window.location.origin;
+    ac.innerHTML = `
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-number">✅</div>
+          <div class="section-header-text">
+            <h3>Lotes Pendentes (${data.length})</h3>
+            <p>Clique em um lote para revisar e aprovar</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            ${data.map(batch => {
+              const approvalLink = `${origin}/approval.html?token=${state.token}&batch=${batch.id}`;
+              const createdAt = batch.created_at ? new Date(batch.created_at).toLocaleDateString('pt-BR') : '—';
+              return `
+                <div style="background:#f8faff;border:1.5px solid var(--border);border-radius:10px;padding:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                  <div>
+                    <div style="font-weight:700;font-size:15px;color:var(--primary)">${batch.name || 'Lote de Conteúdo'}</div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-top:4px">
+                      📅 Criado em ${createdAt}
+                      ${batch.items_count ? ` &nbsp;·&nbsp; 📁 ${batch.items_count} ite${batch.items_count === 1 ? 'm' : 'ns'}` : ''}
+                    </div>
+                    ${batch.description ? `<div style="font-size:13px;color:var(--text);margin-top:6px">${batch.description}</div>` : ''}
+                  </div>
+                  <a href="${approvalLink}" style="padding:10px 20px;background:var(--primary);color:white;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0">
+                    Revisar →
+                  </a>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    const ac = document.getElementById('approval-content');
+    if (ac) ac.innerHTML = `<div class="screen"><div class="screen-icon error">❌</div><h2>Erro ao carregar</h2><p>Não foi possível buscar os lotes. Tente novamente.</p></div>`;
+  }
+};
 
 function updateProgress() {
   const pct = Math.round(((state.currentStep+1)/STEPS.length)*100);

@@ -111,9 +111,7 @@ function renderMemberCard(member, workload, stats, profile) {
   return `
     <div class="card member-card" data-member-id="${member.id}" style="cursor:pointer;transition:transform .15s,box-shadow .15s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.1)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
-        ${member.photo_url
-          ? `<div style="width:52px;height:52px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid var(--primary);"><img src="${member.photo_url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.outerHTML='${renderAvatar({ full_name: member.full_name, avatar_url: member.avatar_url }, 52).replace(/'/g,"\\'")}'" ></div>`
-          : renderAvatar({ full_name: member.full_name, avatar_url: member.avatar_url }, 52)}
+        ${renderAvatar({ full_name: member.full_name, avatar_url: member.avatar_url }, 52)}
         <div style="flex:1;min-width:0;">
           <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:2px;">${sanitize(member.full_name)}</div>
           <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">${sanitize(member.position || '—')}</div>
@@ -213,16 +211,6 @@ function renderDadosPessoais(container, member, profile, overlay) {
   container.innerHTML = `
     <form id="form-dados-pessoais">
       <div class="form-grid-3">
-        <!-- Foto do membro -->
-        <div style="grid-column:1/-1; display:flex; align-items:center; gap:16px; padding:16px; background:#f9f6ff; border-radius:10px; margin-bottom:8px;">
-          <div id="member-photo-preview" style="width:72px; height:72px; border-radius:50%; border:3px solid var(--primary); overflow:hidden; display:flex; align-items:center; justify-content:center; background:#e8d5ff; font-size:28px; font-weight:700; color:var(--primary);">
-            ${member.photo_url ? `<img src="${member.photo_url}" style="width:100%;height:100%;object-fit:cover">` : member.full_name?.charAt(0) || '?'}
-          </div>
-          <div style="flex:1;">
-            <label class="form-label">URL da Foto</label>
-            <input type="url" class="form-input" name="photo_url" value="${member.photo_url || ''}" placeholder="https://..." oninput="document.getElementById('member-photo-preview').innerHTML=this.value?'<img src=\''+this.value+'\'  style=\'width:100%;height:100%;object-fit:cover\'>':'${member.full_name?.charAt(0)||'?'}'">
-          </div>
-        </div>
         <div class="form-group">
           <label class="form-label">Nome Completo *</label>
           <input type="text" class="form-input" name="full_name" value="${sanitize(member.full_name || '')}" required>
@@ -292,10 +280,15 @@ function renderDadosPessoais(container, member, profile, overlay) {
       </div>
 
       <h4 style="font-size:13px;font-weight:700;margin:20px 0 12px;color:var(--text-secondary);text-transform:uppercase;">Contato de Emergência</h4>
-      <div style="grid-column:1/-1; margin-bottom:8px;">
-        <button type="button" class="btn-secondary" id="btn-manage-emergency-contacts" style="display:flex;align-items:center;gap:8px;">
-          🚨 Gerenciar Contatos de Emergência
-        </button>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Nome</label>
+          <input type="text" class="form-input" name="emergency_name" value="${sanitize(member.emergency_contact?.name || '')}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone</label>
+          <input type="tel" class="form-input" name="emergency_phone" value="${sanitize(member.emergency_contact?.phone || '')}">
+        </div>
       </div>
 
       <h4 style="font-size:13px;font-weight:700;margin:20px 0 12px;color:var(--text-secondary);text-transform:uppercase;">Dados Bancários</h4>
@@ -353,10 +346,6 @@ function renderDadosPessoais(container, member, profile, overlay) {
     showCreateLoginModal(member);
   });
 
-  document.getElementById('btn-manage-emergency-contacts')?.addEventListener('click', () => {
-    openEmergencyContactsModal(member, profile);
-  });
-
   container.querySelector('#form-dados-pessoais').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -370,7 +359,6 @@ function renderDadosPessoais(container, member, profile, overlay) {
       position: fd.get('position'),
       hire_date: fd.get('hire_date') || null,
       ...(isMaster && { salary: parseFloat(fd.get('salary')) || null }),
-      photo_url: fd.get('photo_url') || null,
       address: {
         street: fd.get('address_street'),
         number: fd.get('address_number'),
@@ -378,6 +366,10 @@ function renderDadosPessoais(container, member, profile, overlay) {
         city: fd.get('address_city'),
         state: fd.get('address_state'),
         zip: fd.get('address_zip')
+      },
+      emergency_contact: {
+        name: fd.get('emergency_name'),
+        phone: fd.get('emergency_phone')
       },
       bank_info: {
         name: fd.get('bank_name'),
@@ -403,256 +395,6 @@ function renderDadosPessoais(container, member, profile, overlay) {
       btn.textContent = '💾 Salvar Dados'; btn.disabled = false;
     }
   });
-}
-
-// ---- Emergency Contacts Modal ----
-async function openEmergencyContactsModal(member, profile) {
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal modal-lg" style="max-height:90vh;display:flex;flex-direction:column;">
-      <div class="modal-header">
-        <h2 class="modal-title">🚨 Contatos de Emergência — ${sanitize(member.full_name)}</h2>
-        <button class="modal-close" id="close-emergency-modal">✕</button>
-      </div>
-      <div class="modal-body" id="emergency-modal-body" style="flex:1;overflow-y:auto;">
-        <div style="text-align:center;padding:40px;">⏳ Carregando...</div>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  document.getElementById('close-emergency-modal').addEventListener('click', () => overlay.remove());
-
-  const renderContacts = async () => {
-    const body = document.getElementById('emergency-modal-body');
-    if (!body) return;
-    body.innerHTML = `<div style="text-align:center;padding:40px;">⏳ Carregando...</div>`;
-
-    let contacts = [];
-    try {
-      contacts = await teamDB.getEmergencyContacts(member.id);
-    } catch (err) {
-      body.innerHTML = `<div style="color:#ef4444;padding:20px;">Erro ao carregar: ${sanitize(err.message)}</div>`;
-      return;
-    }
-
-    const relationOptions = [
-      { value: 'mae', label: 'Mãe' },
-      { value: 'pai', label: 'Pai' },
-      { value: 'irmao', label: 'Irmão' },
-      { value: 'irma', label: 'Irmã' },
-      { value: 'namorado', label: 'Namorado' },
-      { value: 'namorada', label: 'Namorada' },
-      { value: 'conjuge', label: 'Cônjuge' },
-      { value: 'filho', label: 'Filho/Filha' },
-      { value: 'amigo', label: 'Amigo/Amiga' },
-      { value: 'outro', label: 'Outro' }
-    ];
-
-    body.innerHTML = `
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <h4 style="font-size:14px;font-weight:700;">Contatos Cadastrados (${contacts.length})</h4>
-          <button class="btn-primary btn-sm" id="btn-add-emergency">+ Adicionar Contato</button>
-        </div>
-
-        <div id="emergency-contacts-list">
-          ${contacts.length === 0
-            ? `<div style="text-align:center;padding:32px;color:var(--text-secondary);">🚨 Nenhum contato de emergência cadastrado.</div>`
-            : contacts.map(c => `
-              <div class="card" style="padding:14px;margin-bottom:10px;border:1px solid var(--border);" data-contact-id="${c.id}">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-                  <div style="flex:1;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                      <span style="font-size:14px;font-weight:700;">${sanitize(c.name)}</span>
-                      ${c.is_primary ? `<span class="badge" style="background:#fef3c7;color:#92400e;font-size:10px;">⭐ Principal</span>` : ''}
-                    </div>
-                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:2px;">
-                      ${sanitize(relationOptions.find(r => r.value === c.relationship)?.label || c.relationship || '—')}
-                    </div>
-                    <div style="font-size:13px;font-weight:600;">📞 ${sanitize(c.phone)}</div>
-                    ${c.phone2 ? `<div style="font-size:12px;color:var(--text-secondary);">📞 ${sanitize(c.phone2)}</div>` : ''}
-                    ${c.email ? `<div style="font-size:12px;color:var(--text-secondary);">✉️ ${sanitize(c.email)}</div>` : ''}
-                  </div>
-                  <div style="display:flex;gap:6px;flex-shrink:0;">
-                    <button class="btn-secondary btn-sm btn-edit-contact" data-id="${c.id}">✏️</button>
-                    <button class="btn-danger btn-sm btn-delete-contact" data-id="${c.id}">🗑️</button>
-                  </div>
-                </div>
-                <div class="edit-contact-form" id="edit-form-${c.id}" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-                  <div class="form-grid-3">
-                    <div class="form-group">
-                      <label class="form-label">Nome *</label>
-                      <input type="text" class="form-input ec-name" value="${sanitize(c.name)}">
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Relacionamento *</label>
-                      <select class="form-select ec-relationship">
-                        ${relationOptions.map(r => `<option value="${r.value}" ${c.relationship === r.value ? 'selected' : ''}>${r.label}</option>`).join('')}
-                      </select>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Telefone *</label>
-                      <input type="tel" class="form-input ec-phone" value="${sanitize(c.phone)}">
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Telefone 2</label>
-                      <input type="tel" class="form-input ec-phone2" value="${sanitize(c.phone2 || '')}">
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">E-mail</label>
-                      <input type="email" class="form-input ec-email" value="${sanitize(c.email || '')}">
-                    </div>
-                    <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:4px;">
-                      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
-                        <input type="checkbox" class="ec-primary" ${c.is_primary ? 'checked' : ''}> Contato Principal
-                      </label>
-                    </div>
-                  </div>
-                  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
-                    <button class="btn-secondary btn-sm btn-cancel-edit" data-id="${c.id}">Cancelar</button>
-                    <button class="btn-primary btn-sm btn-save-edit" data-id="${c.id}">💾 Salvar</button>
-                  </div>
-                </div>
-              </div>
-            `).join('')}
-        </div>
-
-        <div id="add-emergency-form" style="display:none;margin-top:16px;" class="card" style="padding:16px;background:#f0f9ff;border:1px solid #bae6fd;">
-          <h4 style="font-size:13px;font-weight:700;margin-bottom:12px;">➕ Novo Contato de Emergência</h4>
-          <div class="form-grid-3">
-            <div class="form-group">
-              <label class="form-label">Nome *</label>
-              <input type="text" class="form-input" id="new-ec-name" placeholder="Nome completo">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Relacionamento *</label>
-              <select class="form-select" id="new-ec-relationship">
-                ${relationOptions.map(r => `<option value="${r.value}">${r.label}</option>`).join('')}
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Telefone *</label>
-              <input type="tel" class="form-input" id="new-ec-phone" placeholder="(11) 99999-9999">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Telefone 2</label>
-              <input type="tel" class="form-input" id="new-ec-phone2" placeholder="(11) 99999-9999">
-            </div>
-            <div class="form-group">
-              <label class="form-label">E-mail</label>
-              <input type="email" class="form-input" id="new-ec-email" placeholder="email@exemplo.com">
-            </div>
-            <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:4px;">
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
-                <input type="checkbox" id="new-ec-primary"> Contato Principal
-              </label>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
-            <button class="btn-secondary btn-sm" id="btn-cancel-add-ec">Cancelar</button>
-            <button class="btn-primary btn-sm" id="btn-save-new-ec">💾 Adicionar</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Toggle add form
-    document.getElementById('btn-add-emergency')?.addEventListener('click', () => {
-      const form = document.getElementById('add-emergency-form');
-      form.style.display = form.style.display === 'none' ? 'block' : 'none';
-    });
-
-    document.getElementById('btn-cancel-add-ec')?.addEventListener('click', () => {
-      document.getElementById('add-emergency-form').style.display = 'none';
-    });
-
-    // Save new contact
-    document.getElementById('btn-save-new-ec')?.addEventListener('click', async () => {
-      const name = document.getElementById('new-ec-name').value.trim();
-      const phone = document.getElementById('new-ec-phone').value.trim();
-      const relationship = document.getElementById('new-ec-relationship').value;
-      if (!name || !phone) { showToast('Nome e telefone são obrigatórios', 'warning'); return; }
-      const btn = document.getElementById('btn-save-new-ec');
-      btn.textContent = 'Salvando...'; btn.disabled = true;
-      try {
-        await teamDB.saveEmergencyContact({
-          member_id: member.id,
-          name,
-          relationship,
-          phone,
-          phone2: document.getElementById('new-ec-phone2').value.trim() || null,
-          email: document.getElementById('new-ec-email').value.trim() || null,
-          is_primary: document.getElementById('new-ec-primary').checked
-        });
-        showToast('Contato adicionado!', 'success');
-        renderContacts();
-      } catch (err) {
-        showToast('Erro: ' + err.message, 'error');
-        btn.textContent = '💾 Adicionar'; btn.disabled = false;
-      }
-    });
-
-    // Toggle edit forms
-    body.querySelectorAll('.btn-edit-contact').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.id;
-        const form = document.getElementById('edit-form-' + id);
-        if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
-      });
-    });
-
-    body.querySelectorAll('.btn-cancel-edit').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const form = document.getElementById('edit-form-' + btn.dataset.id);
-        if (form) form.style.display = 'none';
-      });
-    });
-
-    // Save edit
-    body.querySelectorAll('.btn-save-edit').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.dataset.id;
-        const form = document.getElementById('edit-form-' + id);
-        const name = form.querySelector('.ec-name').value.trim();
-        const phone = form.querySelector('.ec-phone').value.trim();
-        if (!name || !phone) { showToast('Nome e telefone são obrigatórios', 'warning'); return; }
-        btn.textContent = 'Salvando...'; btn.disabled = true;
-        try {
-          await teamDB.updateEmergencyContact(id, {
-            name,
-            relationship: form.querySelector('.ec-relationship').value,
-            phone,
-            phone2: form.querySelector('.ec-phone2').value.trim() || null,
-            email: form.querySelector('.ec-email').value.trim() || null,
-            is_primary: form.querySelector('.ec-primary').checked
-          });
-          showToast('Contato atualizado!', 'success');
-          renderContacts();
-        } catch (err) {
-          showToast('Erro: ' + err.message, 'error');
-          btn.textContent = '💾 Salvar'; btn.disabled = false;
-        }
-      });
-    });
-
-    // Delete contact
-    body.querySelectorAll('.btn-delete-contact').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const ok = await showConfirm('Remover este contato de emergência?', 'Confirmar Exclusão');
-        if (!ok) return;
-        try {
-          await teamDB.deleteEmergencyContact(btn.dataset.id);
-          showToast('Contato removido.', 'success');
-          renderContacts();
-        } catch (err) {
-          showToast('Erro: ' + err.message, 'error');
-        }
-      });
-    });
-  };
-
-  renderContacts();
 }
 
 // ---- TAB: Documentos ----

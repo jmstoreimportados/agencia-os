@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aprovação de Conteúdo — IVY Marketing</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ivy-purple:   #9B1EC8;
+      --ivy-purple-dk:#7a1799;
+      --ivy-gold:     #EFC219;
+      --ivy-bg-hdr:   #1A0530;
+      --bg:           #f5f4f8;
+      --card-bg:      #ffffff;
+      --text:         #1e1e2e;
+      --text-muted:   #6b7280;
+      --border:       #e5e7eb;
+      --green:        #10b981;
+      --green-lt:     #d1fae5;
+      --amber:        #f59e0b;
+      --amber-lt:     #fef3c7;
+      --red-lt:       #fee2e2;
+      --radius:       12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--ivy-bg-hdr);
+      border-top: 4px solid var(--ivy-gold);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    .logo-mark {
+      width: 44px;
+      height: 44px;
+      background: var(--ivy-purple);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 18px;
+      color: var(--ivy-gold);
+      letter-spacing: -1px;
+      flex-shrink: 0;
+    }
+    .logo-text { line-height: 1.2; }
+    .logo-text strong {
+      display: block;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .logo-text span {
+      color: var(--ivy-gold);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .header-client {
+      margin-left: auto;
+      text-align: right;
+    }
+    .header-client-name {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .header-client-label {
+      color: var(--ivy-gold);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── MAIN ── */
+    .main { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; }
+
+    /* ── BATCH HERO ── */
+    .batch-hero {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .batch-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--ivy-bg-hdr);
+      margin-bottom: 4px;
+    }
+    .batch-meta {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .progress-bar-wrap {
+      height: 10px;
+      background: #e5e7eb;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--ivy-purple);
+      border-radius: 99px;
+      transition: width .4s ease;
+    }
+
+    /* ── STATUS BADGE ── */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 99px;
+      margin-top: 10px;
+    }
+    .status-badge.pending          { background:#f3f4f6; color:#374151; }
+    .status-badge.partial          { background:#ede9fe; color:#6d28d9; }
+    .status-badge.approved         { background:var(--green-lt); color:#065f46; }
+    .status-badge.revision_requested { background:var(--amber-lt); color:#92400e; }
+
+    /* ── ITEMS SECTION ── */
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 14px;
+    }
+
+    /* ── CONTENT CARD ── */
+    .content-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      margin-bottom: 16px;
+      overflow: hidden;
+      border: 2px solid transparent;
+      transition: border-color .2s;
+    }
+    .content-card.approved         { border-color: var(--green); }
+    .content-card.revision_requested { border-color: var(--amber); }
+
+    .card-media {
+      width: 100%;
+      max-height: 340px;
+      object-fit: cover;
+      display: block;
+      background: #e5e7eb;
+    }
+    .card-body { padding: 16px; }
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+    }
+
+    /* Platform badges */
+    .platform-badge {
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .pb-instagram { background:#f3e8ff; color:#7e22ce; }
+    .pb-facebook  { background:#dbeafe; color:#1d4ed8; }
+    .pb-tiktok    { background:#ffe4e6; color:#be123c; }
+    .pb-gmb       { background:#dcfce7; color:#15803d; }
+    .pb-traffic   { background:#fef3c7; color:#b45309; }
+    .pb-other     { background:#f3f4f6; color:#374151; }
+
+    .card-description {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+    .card-caption {
+      font-size: 13px;
+      color: var(--text);
+      background: #f9fafb;
+      border-left: 3px solid var(--ivy-purple);
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 10px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+    .card-date {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    /* Card actions */
+    .card-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .5; cursor: default; }
+
+    .btn-approve {
+      background: var(--green);
+      color: #fff;
+    }
+    .btn-approve:hover:not(:disabled) { background: #059669; }
+    .btn-approve.active {
+      background: var(--green);
+      box-shadow: 0 0 0 3px rgba(16,185,129,.3);
+    }
+
+    .btn-revision {
+      background: var(--amber);
+      color: #fff;
+    }
+    .btn-revision:hover:not(:disabled) { background: #d97706; }
+    .btn-revision.active {
+      background: var(--amber);
+      box-shadow: 0 0 0 3px rgba(245,158,11,.3);
+    }
+
+    /* Comment area */
+    .comment-area {
+      margin-top: 12px;
+      display: none;
+    }
+    .comment-area.open { display: block; }
+    .comment-area textarea {
+      width: 100%;
+      border: 1px solid var(--amber);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 80px;
+      outline: none;
+      color: var(--text);
+    }
+    .comment-area textarea:focus { border-color: var(--ivy-purple); }
+    .comment-area label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--amber);
+      margin-bottom: 5px;
+    }
+
+    .card-status-row {
+      margin-top: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      display: none;
+    }
+    .card-status-row.show { display: flex; align-items: center; gap: 6px; }
+    .card-status-row.approved-row { color: var(--green); }
+    .card-status-row.revision-row { color: var(--amber); }
+
+    /* ── SUBMIT SECTION ── */
+    .submit-section {
+      margin-top: 28px;
+      text-align: center;
+    }
+    .btn-submit {
+      background: var(--ivy-purple);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 14px 36px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      max-width: 400px;
+      transition: background .15s, transform .1s;
+    }
+    .btn-submit:hover:not(:disabled) { background: var(--ivy-purple-dk); }
+    .btn-submit:active { transform: scale(.98); }
+    .btn-submit:disabled { opacity: .5; cursor: default; }
+    .submit-hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ── STATES ── */
+    .state-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      text-align: center;
+      padding: 32px 16px;
+    }
+    .state-icon { font-size: 56px; margin-bottom: 16px; }
+    .state-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .state-sub { font-size: 15px; color: var(--text-muted); max-width: 360px; line-height: 1.6; }
+
+    /* ── THANK YOU ── */
+    #screen-thanks { display: none; }
+    .thanks-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 40px 28px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.10);
+      max-width: 480px;
+      width: 100%;
+      margin: 40px auto;
+      text-align: center;
+    }
+    .thanks-icon { font-size: 52px; margin-bottom: 16px; }
+    .thanks-title { font-size: 24px; font-weight: 700; color: var(--ivy-bg-hdr); margin-bottom: 8px; }
+    .thanks-sub { font-size: 15px; color: var(--text-muted); line-height: 1.6; }
+    .thanks-summary {
+      margin: 20px auto 0;
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .thanks-stat {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 13px;
+    }
+    .thanks-stat strong { display: block; font-size: 22px; font-weight: 700; }
+    .thanks-stat.green strong { color: var(--green); }
+    .thanks-stat.amber strong { color: var(--amber); }
+
+    /* ── LOADING ── */
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid #e5e7eb;
+      border-top-color: var(--ivy-purple);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── RESPONSIVE ── */
+    @media (min-width: 540px) {
+      .card-actions { flex-wrap: nowrap; }
+      .btn { flex: 1; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-logo">
+    <div class="logo-mark">IV</div>
+    <div class="logo-text">
+      <strong>IVY Marketing</strong>
+      <span>&amp; Comunicação</span>
+    </div>
+  </div>
+  <div class="header-client" id="header-client" style="display:none">
+    <div class="header-client-label">Cliente</div>
+    <div class="header-client-name" id="header-client-name"></div>
+  </div>
+</header>
+
+<!-- LOADING -->
+<div class="main" id="screen-loading">
+  <div class="state-screen">
+    <div class="spinner"></div>
+    <p class="state-sub">Carregando aprovação…</p>
+  </div>
+</div>
+
+<!-- ERROR -->
+<div class="main" id="screen-error" style="display:none">
+  <div class="state-screen">
+    <div class="state-icon">⚠️</div>
+    <h2 class="state-title">Link inválido ou expirado</h2>
+    <p class="state-sub">Este link de aprovação não foi encontrado ou o prazo de validade expirou. Entre em contato com a sua equipe da IVY Marketing.</p>
+  </div>
+</div>
+
+<!-- CONTENT -->
+<div class="main" id="screen-content" style="display:none">
+
+  <!-- Batch hero -->
+  <div class="batch-hero">
+    <div class="batch-title" id="batch-title"></div>
+    <div class="batch-meta" id="batch-meta"></div>
+    <div class="progress-label">
+      <span id="progress-text">0 aprovados</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-bar" style="width:0%"></div>
+    </div>
+    <div id="batch-status-badge" class="status-badge pending">⏳ Aguardando respostas</div>
+  </div>
+
+  <!-- Items list -->
+  <div class="section-title">Conteúdos para revisão</div>
+  <div id="items-list"></div>
+
+  <!-- Submit -->
+  <div class="submit-section">
+    <button class="btn-submit" id="btn-submit" onclick="submitResponses()">
+      Enviar Respostas
+    </button>
+    <p class="submit-hint" id="submit-hint">Revise todos os itens antes de enviar.</p>
+  </div>
+</div>
+
+<!-- THANK YOU -->
+<div class="main" id="screen-thanks" style="display:none">
+  <div class="thanks-card">
+    <div class="thanks-icon">🎉</div>
+    <h2 class="thanks-title">Respostas enviadas!</h2>
+    <p class="thanks-sub">Obrigado pelo feedback. Nossa equipe receberá suas respostas e entrará em contato em breve.</p>
+    <div class="thanks-summary">
+      <div class="thanks-stat green">
+        <strong id="thanks-approved">0</strong>
+        Aprovados
+      </div>
+      <div class="thanks-stat amber">
+        <strong id="thanks-revised">0</strong>
+        Com revisão
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── Supabase ───────────────────────────────────────────────
+  const SUPABASE_URL  = 'https://vfgaopkwofzkzjdyxazp.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmZ2FvcGt3b2Z6a3pqZHl4YXpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MzMwMTYsImV4cCI6MjA5NTIwOTAxNn0.K7-6o2b8REwAw42oB32AorwZj-8TgorLktXcRTNrcMc';
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // ─── State ──────────────────────────────────────────────────
+  let batchData   = null;   // full response from RPC
+  let decisions   = {};     // { [item_id]: { status, comment } }
+
+  // ─── Helpers ────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+
+  function show(id) {
+    ['screen-loading','screen-error','screen-content','screen-thanks'].forEach(s => {
+      $(s).style.display = s === id ? '' : 'none';
+    });
+  }
+
+  function platformLabel(p) {
+    const map = { instagram:'Instagram', facebook:'Facebook', tiktok:'TikTok', gmb:'Google Meu Negócio', traffic:'Tráfego', other:'Outro' };
+    return map[p] || p || 'Outro';
+  }
+  function platformClass(p) {
+    return 'pb-' + (p || 'other');
+  }
+
+  function monthName(m) {
+    const names = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    return names[(m || 1) - 1] || '';
+  }
+
+  function formatDate(d) {
+    if (!d) return '';
+    const [y, m, day] = d.split('-');
+    return `${day}/${m}/${y}`;
+  }
+
+  // ─── Progress update ────────────────────────────────────────
+  function updateProgress() {
+    const items    = batchData.items;
+    const total    = items.length;
+    const approved = Object.values(decisions).filter(d => d.status === 'approved').length;
+    const revised  = Object.values(decisions).filter(d => d.status === 'revision_requested').length;
+    const answered = approved + revised;
+    const pct      = total > 0 ? Math.round((answered / total) * 100) : 0;
+
+    $('progress-text').textContent = `${answered} de ${total} respondidos`;
+    $('progress-pct').textContent  = pct + '%';
+    $('progress-bar').style.width  = pct + '%';
+
+    // Batch status badge
+    let bStatus = 'pending', bLabel = '⏳ Aguardando respostas';
+    if (answered === 0) {
+      bStatus = 'pending'; bLabel = '⏳ Aguardando respostas';
+    } else if (revised > 0) {
+      bStatus = 'revision_requested'; bLabel = '🔄 Revisão solicitada';
+    } else if (answered < total) {
+      bStatus = 'partial'; bLabel = '📝 Revisão em andamento';
+    } else {
+      bStatus = 'approved'; bLabel = '✅ Tudo aprovado';
+    }
+    const badge = $('batch-status-badge');
+    badge.className = 'status-badge ' + bStatus;
+    badge.textContent = bLabel;
+
+    // Submit button hint
+    const remaining = total - answered;
+    if (remaining > 0) {
+      $('submit-hint').textContent = `Ainda faltam ${remaining} item(s) sem resposta.`;
+    } else {
+      $('submit-hint').textContent = 'Tudo pronto! Clique para enviar suas respostas.';
+    }
+  }
+
+  // ─── Set decision on an item ────────────────────────────────
+  function setDecision(itemId, status) {
+    // Toggle: if same status clicked again, clear it
+    if (decisions[itemId] && decisions[itemId].status === status) {
+      delete decisions[itemId];
+    } else {
+      decisions[itemId] = { status, comment: decisions[itemId]?.comment || '' };
+    }
+
+    const card        = document.querySelector(`[data-item-id="${itemId}"]`);
+    const btnApprove  = card.querySelector('.btn-approve');
+    const btnRevision = card.querySelector('.btn-revision');
+    const commentArea = card.querySelector('.comment-area');
+    const statusRow   = card.querySelector('.card-status-row');
+
+    // Reset card visuals
+    card.classList.remove('approved', 'revision_requested');
+    btnApprove.classList.remove('active');
+    btnRevision.classList.remove('active');
+    commentArea.classList.remove('open');
+    statusRow.classList.remove('show', 'approved-row', 'revision-row');
+    statusRow.style.display = '';
+
+    if (decisions[itemId]) {
+      if (status === 'approved') {
+        card.classList.add('approved');
+        btnApprove.classList.add('active');
+        statusRow.classList.add('show', 'approved-row');
+        statusRow.innerHTML = '✅ Aprovado';
+      } else {
+        card.classList.add('revision_requested');
+        btnRevision.classList.add('active');
+        commentArea.classList.add('open');
+        statusRow.classList.add('show', 'revision-row');
+        statusRow.innerHTML = '🔄 Revisão solicitada';
+      }
+    }
+
+    updateProgress();
+  }
+
+  function setComment(itemId, value) {
+    if (decisions[itemId]) decisions[itemId].comment = value;
+  }
+
+  // ─── Render items ────────────────────────────────────────────
+  function renderItems() {
+    const list  = $('items-list');
+    list.innerHTML = '';
+
+    batchData.items.forEach(item => {
+      const initStatus  = item.status !== 'pending' ? item.status : null;
+      const initComment = item.client_comment || '';
+
+      // Pre-fill decisions from existing data
+      if (initStatus) {
+        decisions[item.id] = { status: initStatus, comment: initComment };
+      }
+
+      const cardClass = initStatus ? `content-card ${initStatus}` : 'content-card';
+
+      let mediaHtml = '';
+      if (item.media_url) {
+        mediaHtml = `<img class="card-media" src="${escHtml(item.media_url)}" alt="${escHtml(item.title)}" loading="lazy" onerror="this.style.display='none'" />`;
+      }
+
+      let captionHtml = '';
+      if (item.caption) {
+        captionHtml = `<div class="card-caption">${escHtml(item.caption)}</div>`;
+      }
+
+      let descHtml = '';
+      if (item.description) {
+        descHtml = `<p class="card-description">${escHtml(item.description)}</p>`;
+      }
+
+      let dateHtml = '';
+      if (item.scheduled_date) {
+        dateHtml = `<div class="card-date">📅 Programado para: <strong>${formatDate(item.scheduled_date)}</strong></div>`;
+      }
+
+      const approvedActive  = initStatus === 'approved'          ? 'active' : '';
+      const revisionActive  = initStatus === 'revision_requested' ? 'active' : '';
+      const commentOpen     = initStatus === 'revision_requested' ? 'open'   : '';
+
+      let statusRowHtml = '';
+      if (initStatus === 'approved') {
+        statusRowHtml = `<div class="card-status-row show approved-row">✅ Aprovado</div>`;
+      } else if (initStatus === 'revision_requested') {
+        statusRowHtml = `<div class="card-status-row show revision-row">🔄 Revisão solicitada</div>`;
+      } else {
+        statusRowHtml = `<div class="card-status-row"></div>`;
+      }
+
+      const html = `
+        <div class="${cardClass}" data-item-id="${item.id}">
+          ${mediaHtml}
+          <div class="card-body">
+            <div class="card-top">
+              <div class="card-title">${escHtml(item.title)}</div>
+              <span class="platform-badge ${platformClass(item.platform)}">${platformLabel(item.platform)}</span>
+            </div>
+            ${descHtml}
+            ${captionHtml}
+            ${dateHtml}
+            <div class="card-actions">
+              <button class="btn btn-approve ${approvedActive}" onclick="setDecision('${item.id}','approved')">
+                ✅ Aprovar
+              </button>
+              <button class="btn btn-revision ${revisionActive}" onclick="setDecision('${item.id}','revision_requested')">
+                🔄 Pedir Revisão
+              </button>
+            </div>
+            <div class="comment-area ${commentOpen}">
+              <label>Descreva o que precisa ser ajustado:</label>
+              <textarea
+                placeholder="Ex: Alterar a cor do fundo, trocar a legenda…"
+                oninput="setComment('${item.id}', this.value)"
+              >${escHtml(initComment)}</textarea>
+            </div>
+            ${statusRowHtml}
+          </div>
+        </div>`;
+
+      list.insertAdjacentHTML('beforeend', html);
+    });
+
+    updateProgress();
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // ─── Submit ──────────────────────────────────────────────────
+  async function submitResponses() {
+    const token = new URLSearchParams(location.search).get('token');
+    if (!token) return;
+
+    const items  = batchData.items;
+    const unanswered = items.filter(i => !decisions[i.id]);
+    if (unanswered.length > 0) {
+      const names = unanswered.map(i => `"${i.title}"`).join(', ');
+      alert(`Por favor, responda todos os itens antes de enviar.\n\nPendentes: ${names}`);
+      return;
+    }
+
+    const btn = $('btn-submit');
+    btn.disabled = true;
+    btn.textContent = 'Enviando…';
+
+    const responses = Object.entries(decisions).map(([item_id, d]) => ({
+      item_id,
+      status:  d.status,
+      comment: d.comment || ''
+    }));
+
+    const { data, error } = await supabase.rpc('submit_approval_responses', {
+      p_token:     token,
+      p_responses: responses
+    });
+
+    if (error || (typeof data === 'string' && data.startsWith('error:'))) {
+      alert('Erro ao enviar respostas: ' + (error?.message || data));
+      btn.disabled = false;
+      btn.textContent = 'Enviar Respostas';
+      return;
+    }
+
+    // Show thank you screen
+    const approved = responses.filter(r => r.status === 'approved').length;
+    const revised  = responses.filter(r => r.status === 'revision_requested').length;
+    $('thanks-approved').textContent = approved;
+    $('thanks-revised').textContent  = revised;
+    show('screen-thanks');
+  }
+
+  // ─── Load ────────────────────────────────────────────────────
+  async function load() {
+    const token = new URLSearchParams(location.search).get('token');
+    if (!token) { show('screen-error'); return; }
+
+    show('screen-loading');
+
+    const { data, error } = await supabase.rpc('get_approval_batch_by_token', {
+      p_token: token
+    });
+
+    if (error || !data) { show('screen-error'); return; }
+
+    batchData = data;
+
+    // Header client name
+    if (data.client?.name) {
+      $('header-client-name').textContent = data.client.name;
+      $('header-client').style.display    = '';
+    }
+
+    // Batch hero
+    const batch = data.batch;
+    $('batch-title').textContent = batch.title || 'Aprovação de Conteúdo';
+    const periodLabel = batch.month && batch.year
+      ? `${monthName(batch.month)} / ${batch.year}  ·  `
+      : '';
+    const expiresDate = batch.expires_at
+      ? new Date(batch.expires_at).toLocaleDateString('pt-BR')
+      : '';
+    $('batch-meta').textContent = `${periodLabel}Válido até ${expiresDate}`;
+
+    renderItems();
+    show('screen-content');
+  }
+
+  load();
+</script>
+</body>
+</html>

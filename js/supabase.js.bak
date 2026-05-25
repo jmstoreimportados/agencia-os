@@ -448,46 +448,6 @@ export const teamDB = {
       .lte('due_date', weekEnd.toISOString().split('T')[0]);
     if (error) throw error;
     return data;
-  },
-
-  async getEmergencyContacts(memberId) {
-    const { data, error } = await supabase
-      .from('team_emergency_contacts')
-      .select('*')
-      .eq('member_id', memberId)
-      .order('is_primary', { ascending: false })
-      .order('created_at');
-    if (error) throw error;
-    return data || [];
-  },
-
-  async saveEmergencyContact(contact) {
-    const { data, error } = await supabase
-      .from('team_emergency_contacts')
-      .insert(contact)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  },
-
-  async updateEmergencyContact(id, updates) {
-    const { data, error } = await supabase
-      .from('team_emergency_contacts')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  },
-
-  async deleteEmergencyContact(id) {
-    const { error } = await supabase
-      .from('team_emergency_contacts')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
   }
 };
 

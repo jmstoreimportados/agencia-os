@@ -12,6 +12,37 @@ let currentTab = 'dados';
 let searchQuery = '';
 let statusFilter = 'all';
 
+// ─── Health Score ────────────────────────────────────────────
+function calculateHealthScore(client) {
+  let score = 100;
+  // Pagamentos em atraso penalizam
+  if (client.payment_status === 'overdue') score -= 30;
+  else if (client.payment_status === 'pending') score -= 10;
+  // Status do cliente
+  if (client.status === 'at_risk') score -= 20;
+  else if (client.status === 'paused') score -= 15;
+  else if (client.status === 'churned') score = 0;
+  // Health score explícito do banco tem prioridade se existir
+  if (client.health_score != null) return client.health_score;
+  return Math.max(0, Math.min(100, score));
+}
+
+function renderHealthBar(score) {
+  const color = score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444';
+  const label = score >= 70 ? 'Saudável' : score >= 40 ? 'Atenção' : 'Crítico';
+  return `
+    <div style="margin-top:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <span style="font-size:10px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.3px;">Health Score</span>
+        <span style="font-size:11px;font-weight:700;color:${color};">${score}% ${label}</span>
+      </div>
+      <div style="height:5px;background:#f3f4f6;border-radius:10px;overflow:hidden;">
+        <div style="height:100%;width:${score}%;background:${color};border-radius:10px;transition:width .6s ease;"></div>
+      </div>
+    </div>
+  `;
+}
+
 export async function renderClients(container, user) {
   container.innerHTML = renderSpinner('Carregando clientes...');
   try {
@@ -140,6 +171,7 @@ function renderClientCard(c) {
             ${services.length > 3 ? `<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:#f1f5f9;color:#64748b">+${services.length-3}</span>` : ''}
           </div>
         ` : ''}
+        ${renderHealthBar(calculateHealthScore(c))}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9">
           <span style="font-size:11px;color:#94a3b8">Cliente desde ${formatDate(c.created_at)}</span>
           <span style="font-size:11px;color:#3b82f6;font-weight:600">Ver detalhes →</span>
@@ -196,6 +228,9 @@ function renderClientModal(body, user) {
           <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
             <span style="background:${st.bg};color:${st.color};padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600">${st.icon} ${st.label}</span>
             ${c.monthly_value ? `<span style="color:rgba(255,255,255,0.85);font-size:13px">💰 R$ ${Number(c.monthly_value).toLocaleString('pt-BR')}/mês</span>` : ''}
+          </div>
+          <div style="margin-top:8px;max-width:320px;">
+            ${(() => { const hs = calculateHealthScore(c); const hc = hs >= 70 ? '#10b981' : hs >= 40 ? '#f59e0b' : '#ef4444'; const hl = hs >= 70 ? 'Saudável' : hs >= 40 ? 'Atenção' : 'Crítico'; return `<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:11px;color:rgba(255,255,255,0.65);font-weight:600;text-transform:uppercase;letter-spacing:.3px;">Health Score</span><span style="font-size:12px;font-weight:700;background:rgba(0,0,0,0.25);color:${hc};padding:2px 8px;border-radius:20px;">${hs}% ${hl}</span></div><div style="height:4px;background:rgba(255,255,255,0.15);border-radius:10px;overflow:hidden;margin-top:4px;"><div style="height:100%;width:${hs}%;background:${hc};border-radius:10px;transition:width .6s ease;"></div></div>`; })()}
           </div>
         </div>
         <button onclick="document.getElementById('client-modal').style.display='none'" style="color:rgba(255,255,255,0.7);background:none;border:none;font-size:24px;cursor:pointer;line-height:1">×</button>
