@@ -76,11 +76,24 @@ async function loadDashboard(container, profile, agencyConfig, isCompany) {
 // COMPANY DASHBOARD
 // ============================================================
 async function renderCompanyDashboard(container, profile, agencyConfig) {
-  const [clients, tasks, mrrHistory, recentActivity] = await Promise.all([
+  const [clients, tasks, mrrHistory, recentActivity, npsData, pendingApprovals] = await Promise.all([
     clientsDB.getAll().catch(() => []),
     tasksDB.getAll().catch(() => []),
     financialDB.getMRRHistory(6).catch(() => []),
-    logDB.getRecent(20).catch(() => [])
+    logDB.getRecent(20).catch(() => []),
+    // NPS dos últimos 3 meses
+    (async () => {
+      const { supabase } = await import('../supabase.js');
+      const now = new Date();
+      const { data } = await supabase.from('client_nps').select('score').gte('created_at', new Date(now.getFullYear(), now.getMonth()-2, 1).toISOString());
+      return data || [];
+    })().catch(() => []),
+    // Aprovações pendentes
+    (async () => {
+      const { supabase } = await import('../supabase.js');
+      const { data } = await supabase.from('content_approval_batches').select('id,title,client_id').eq('status','pending').order('created_at', {ascending:false}).limit(10);
+      return data || [];
+    })().catch(() => [])
   ]);
 
   const today = new Date().toISOString().split('T')[0];
@@ -101,8 +114,13 @@ async function renderCompanyDashboard(container, profile, agencyConfig) {
     t.due_date && t.due_date >= today && t.due_date <= weekEndStr
   ).sort((a, b) => a.due_date.localeCompare(b.due_date)).slice(0, 15);
 
+  // NPS médio
+  const npsAvg = npsData.length > 0
+    ? Math.round(npsData.reduce((s, n) => s + n.score, 0) / npsData.length * 10) / 10
+    : null;
+
   // Smart alerts
-  const alerts = buildSmartAlerts(clients, tasks, today);
+  const alerts = buildSmartAlerts(clients, tasks, today, pendingApprovals);
 
   container.innerHTML = `
     <!-- KPI Cards -->
@@ -117,6 +135,16 @@ async function renderCompanyDashboard(container, profile, agencyConfig) {
         overdueTasks.length > 0 ? 'Requerem atenção' : 'Tudo em dia')}
       ${renderKPICard('MRR Atual', formatCurrency(currentMRR), '💰', 'var(--warning)', 'var(--warning-light)',
         `${activeClients.length} contratos ativos`)}
+      ${npsAvg !== null
+        ? renderKPICard(
+            'NPS Médio',
+            `${npsAvg}/10`,
+            npsAvg >= 8 ? '⭐' : npsAvg >= 6 ? '😐' : '😟',
+            npsAvg >= 8 ? 'var(--success)' : npsAvg >= 6 ? 'var(--warning)' : 'var(--danger)',
+            npsAvg >= 8 ? 'var(--success-light)' : npsAvg >= 6 ? 'var(--warning-light)' : 'var(--danger-light)',
+            `${npsData.length} avaliações (3 meses)`
+          )
+        : renderKPICard('NPS Médio', '—', '⭐', 'var(--text-secondary)', '#f9fafb', 'Nenhuma avaliação ainda')}
     </div>
 
     <!-- Row: Health Grid + Smart Alerts -->
@@ -226,7 +254,7 @@ function renderHealthGrid(clients) {
   `;
 }
 
-function buildSmartAlerts(clients, tasks, today) {
+function buildSmartAlerts(clients, tasks, today, pendingApprovals = []) {
   const alerts = [];
 
   // Overdue tasks
@@ -261,6 +289,16 @@ function buildSmartAlerts(clients, tasks, today) {
       icon: '✔️',
       title: `${approval.length} tarefa${approval.length > 1 ? 's' : ''} aguardando aprovação`,
       desc: approval.slice(0, 2).map(t => truncate(t.title, 30)).join(', ')
+    });
+  }
+
+  // Pending approval batches
+  if (pendingApprovals.length > 0) {
+    alerts.push({
+      type: 'info',
+      icon: '🔗',
+      title: `${pendingApprovals.length} lote${pendingApprovals.length > 1 ? 's' : ''} aguardando resposta do cliente`,
+      desc: `${pendingApprovals.length} cliente${pendingApprovals.length > 1 ? 's' : ''} ainda não respondeu à aprovação de conteúdo`
     });
   }
 
@@ -666,7 +704,7 @@ function renderMyClients(clients) {
   return `
     <div style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;">
       ${clients.map(c => {
-        const status = CLIENT_STATUS_LABELS[c.status] || { label: c.status, color: '#6b7280', bg: '#f9fafb', icon: '📌' };
+        const status = CLIENT_STATUS_LABELS[c.status] || { label: c.status, color: '#6b7280', bg: '#f9fafb', icon: '•' };
         const health = getHealthColor(c.health_score || 0);
         return `
           <div class="my-client-item" data-client-id="${c.id}"
@@ -677,50 +715,16 @@ function renderMyClients(clients) {
               ${status.icon}
             </div>
             <div style="flex:1;min-width:0;">
-              <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                ${sanitize(c.name)}
-              </div>
-              <div style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:2px;">
-                <span style="color:${status.color};">${status.label}</span>
-                <span>·</span>
-                <span style="color:${health.color};">Health: ${c.health_score || 0}</span>
-              </div>
+              <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${sanitize(c.name)}</div>
+              <div style="font-size:11px;color:var(--text-secondary);">${sanitize(c.segment || status.label)}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-size:11px;font-weight:700;color:${health.color};">${c.health_score || 0}</div>
+              <div style="font-size:10px;color:var(--text-secondary);">health</div>
             </div>
           </div>
         `;
       }).join('')}
     </div>
-  `;
-}
-
-// ============================================================
-// LOADING SKELETON
-// ============================================================
-function renderLoadingSkeleton(isCompany) {
-  const skeletonCard = (h = 100) => `
-    <div class="card" style="height:${h}px;animation:pulse 1.5s ease infinite;background:linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%);background-size:200% 100%;"></div>
-  `;
-  if (isCompany) {
-    return `
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
-        ${[1,2,3,4].map(() => skeletonCard(90)).join('')}
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;margin-bottom:24px;">
-        ${skeletonCard(320)}${skeletonCard(320)}
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 380px;gap:16px;margin-bottom:24px;">
-        ${skeletonCard(260)}${skeletonCard(260)}
-      </div>
-      ${skeletonCard(200)}
-    `;
-  }
-  return `
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
-      ${[1,2,3,4].map(() => skeletonCard(90)).join('')}
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;margin-bottom:24px;">
-      ${skeletonCard(340)}${skeletonCard(340)}
-    </div>
-    ${skeletonCard(200)}
   `;
 }

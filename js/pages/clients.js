@@ -214,7 +214,9 @@ function renderClientModal(body, user) {
     { id: 'ficha',          label: '📝 Ficha',          icon: '📝' },
     { id: 'portal',         label: '🔗 Portal',         icon: '🔗' },
     { id: 'servicos',       label: '🛠️ Serviços',       icon: '🛠️' },
-    { id: 'historico',      label: '📊 Histórico',      icon: '📊' }
+    { id: 'historico',      label: '📊 Histórico',      icon: '📊' },
+    { id: 'aprovacoes',     label: '✅ Aprovações',     icon: '✅' },
+    { id: 'nps',            label: '⭐ NPS',            icon: '⭐' }
   ];
 
   body.innerHTML = `
@@ -271,7 +273,9 @@ function renderClientTab(tab, user) {
     case 'ficha': return renderTabFicha(c, user);
     case 'portal': return renderTabPortal(c, user);
     case 'servicos': return renderTabServicos(c);
-    case 'historico': return renderTabHistorico(c);
+    case 'historico':   return renderTabHistorico(c);
+    case 'aprovacoes':  return renderTabAprovacoes(c, user);
+    case 'nps':         return renderTabNps(c, user);
     default: return '';
   }
 }
@@ -680,4 +684,164 @@ function exportCSV() {
   a.href = 'data:text/csv;charset=utf-8,﻿' + encodeURIComponent(csv);
   a.download = `clientes_${new Date().toISOString().split('T')[0]}.csv`;
   a.click();
+}
+
+// ─── Aba Aprovações ────────────────────────────────────────
+function renderTabAprovacoes(c, user) {
+  const containerId = 'tab-aprovacoes-content';
+  setTimeout(async () => {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    try {
+      const { data, error } = await db
+        .from('content_approval_batches')
+        .select('*, items:content_approval_items(id,status)')
+        .eq('client_id', c.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      const batches = data || [];
+
+      const statusBadge = (status) => {
+        const map = {
+          pending:            { bg: '#eff6ff', color: '#2563eb', label: 'Pendente' },
+          partial:            { bg: '#fffbeb', color: '#d97706', label: 'Parcial' },
+          approved:           { bg: '#f0fdf4', color: '#16a34a', label: 'Aprovado' },
+          revision_requested: { bg: '#fff7ed', color: '#ea580c', label: 'Revisão' }
+        };
+        const s = map[status] || { bg: '#f1f5f9', color: '#64748b', label: status };
+        return `<span style="background:${s.bg};color:${s.color};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600">${s.label}</span>`;
+      };
+
+      if (batches.length === 0) {
+        el.innerHTML = `
+          <div style="text-align:center;padding:48px 20px;color:#94a3b8">
+            <div style="font-size:40px;margin-bottom:12px">✅</div>
+            <p style="font-size:14px">Nenhum lote de aprovação enviado ainda</p>
+          </div>`;
+        return;
+      }
+
+      const rows = batches.map(b => {
+        const items = b.items || [];
+        const total = items.length;
+        const approved = items.filter(i => i.status === 'approved').length;
+        const link = `${location.origin}/approval.html?token=${b.token}`;
+        const date = b.created_at ? new Date(b.created_at).toLocaleDateString('pt-BR') : '—';
+        const monthYear = b.reference_month
+          ? new Date(b.reference_month + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+          : '';
+
+        const phone = (c.whatsapp || c.phone || '').replace(/\D/g, '');
+        const waMsg = encodeURIComponent('Olá ' + c.name + '! Segue o link para aprovação dos conteúdos: ' + link);
+
+        return `
+          <div style="background:#f8faff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600;font-size:14px;color:#1e293b;margin-bottom:4px">${b.title || 'Lote sem título'}</div>
+                ${monthYear ? `<div style="font-size:12px;color:#64748b;margin-bottom:4px">📅 ${monthYear}</div>` : ''}
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px">
+                  ${statusBadge(b.status)}
+                  <span style="font-size:12px;color:#64748b">${approved}/${total} itens aprovados</span>
+                  <span style="font-size:11px;color:#94a3b8">Criado em ${date}</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
+                <button onclick="navigator.clipboard.writeText('${link}').then(()=>window._clients.showCopied(this))"
+                  style="padding:6px 12px;border-radius:6px;border:1.5px solid #e2e8f0;background:white;font-size:12px;cursor:pointer;font-weight:600">
+                  🔗 Reenviar Link
+                </button>
+                ${phone ? `
+                  <a href="https://wa.me/${phone}?text=${waMsg}" target="_blank"
+                    style="padding:6px 12px;border-radius:6px;background:#25D366;color:white;font-size:12px;cursor:pointer;font-weight:600;text-decoration:none;display:flex;align-items:center">
+                    📱 WhatsApp
+                  </a>` : ''}
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+
+      el.innerHTML = rows;
+    } catch(e) {
+      el.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-size:13px">Erro ao carregar aprovações: ${e.message}</div>`;
+    }
+  }, 0);
+  return `<div id="${containerId}"><div style="text-align:center;padding:40px;color:var(--text-secondary,#94a3b8);">⏳ Carregando...</div></div>`;
+}
+
+// ─── Aba NPS ──────────────────────────────────────────────
+function renderTabNps(c, user) {
+  const containerId = 'tab-nps-content';
+  setTimeout(async () => {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    try {
+      const { data, error } = await db
+        .from('client_nps')
+        .select('*')
+        .eq('client_id', c.id)
+        .order('year', { ascending: false })
+        .order('month', { ascending: false })
+        .limit(12);
+      if (error) throw error;
+      const records = data || [];
+
+      if (records.length === 0) {
+        el.innerHTML = `
+          <div style="text-align:center;padding:48px 20px;color:#94a3b8">
+            <div style="font-size:40px;margin-bottom:12px">⭐</div>
+            <p style="font-size:14px;line-height:1.6">Nenhuma avaliação de NPS registrada ainda.<br>Convide o cliente a avaliar via portal.</p>
+          </div>`;
+        return;
+      }
+
+      const npsColor = (score) => score >= 9 ? '#16a34a' : score >= 7 ? '#d97706' : '#dc2626';
+      const npsBg    = (score) => score >= 9 ? '#f0fdf4' : score >= 7 ? '#fffbeb' : '#fef2f2';
+      const npsLabel = (score) => score >= 9 ? 'Promotor' : score >= 7 ? 'Neutro' : 'Detrator';
+
+      const latest = records[0];
+      const avg = (records.reduce((s, r) => s + (r.score || 0), 0) / records.length).toFixed(1);
+      const avgNum = parseFloat(avg);
+      const latestDate = latest.year && latest.month
+        ? new Date(latest.year, latest.month - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+        : '—';
+
+      const historyCards = records.map(r => {
+        const label = r.year && r.month
+          ? new Date(r.year, r.month - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
+          : '—';
+        return `
+          <div style="background:${npsBg(r.score)};border:1px solid ${npsColor(r.score)}30;border-radius:8px;padding:10px 14px;text-align:center">
+            <div style="font-size:20px;font-weight:800;color:${npsColor(r.score)}">${r.score ?? '—'}</div>
+            <div style="font-size:10px;color:#64748b;margin-top:2px">${label}</div>
+          </div>`;
+      }).join('');
+
+      el.innerHTML = `
+        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:24px">
+          <div style="flex:0 0 auto;background:${npsBg(avgNum)};border:2px solid ${npsColor(avgNum)}30;border-radius:14px;padding:24px 32px;text-align:center">
+            <div style="font-size:48px;font-weight:900;color:${npsColor(avgNum)};line-height:1">${avg}</div>
+            <div style="font-size:12px;font-weight:700;color:${npsColor(avgNum)};margin-top:4px;text-transform:uppercase;letter-spacing:.5px">${npsLabel(avgNum)}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px">Média (${records.length} avaliações)</div>
+          </div>
+          <div style="flex:1;min-width:160px">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-bottom:6px">Última Avaliação</div>
+            <div style="font-size:28px;font-weight:800;color:${npsColor(latest.score)}">${latest.score ?? '—'}</div>
+            <div style="font-size:13px;color:#64748b;margin-top:2px">${latestDate}</div>
+            ${latest.comment ? `<p style="font-size:13px;color:#475569;margin-top:8px;line-height:1.5;font-style:italic">"${latest.comment}"</p>` : ''}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-bottom:12px">Histórico</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px">
+            ${historyCards}
+          </div>
+        </div>
+      `;
+    } catch(e) {
+      el.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-size:13px">Erro ao carregar NPS: ${e.message}</div>`;
+    }
+  }, 0);
+  return `<div id="${containerId}"><div style="text-align:center;padding:40px;color:var(--text-secondary,#94a3b8);">⏳ Carregando...</div></div>`;
 }

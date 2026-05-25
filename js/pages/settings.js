@@ -2,7 +2,7 @@
 // SETTINGS PAGE — Agency, Integrations, AI, Notifications, etc.
 // ============================================================
 
-import { configDB, aiDB, currentUser } from '../supabase.js';
+import { configDB, aiDB, currentUser, supabase } from '../supabase.js';
 import { ROLE_LABELS } from '../config.js';
 import {
   showToast, showConfirm, sanitize, generateId, renderAvatar, truncate
@@ -108,9 +108,28 @@ async function renderAgenciaTab(container, profile) {
             <input type="text" class="form-input" id="agency-name" value="${sanitize(agency.name || '')}" placeholder="Minha Agência Digital">
           </div>
           <div class="form-group" style="grid-column:1/-1;">
-            <label class="form-label">URL do Logo</label>
-            <input type="url" class="form-input" id="agency-logo" value="${sanitize(agency.logo_url || '')}" placeholder="https://...">
-            <p class="form-hint">URL pública da imagem do logo da agência (PNG, SVG).</p>
+            <label class="form-label">Logo da Agência</label>
+            <!-- Preview -->
+            <div id="logo-preview-area" style="margin-bottom:12px;display:flex;align-items:center;gap:16px;">
+              <div id="logo-preview" style="width:72px;height:72px;border-radius:12px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;background:#f9fafb;">
+                ${agency.logo_url
+                  ? `<img src="${agency.logo_url}" style="width:100%;height:100%;object-fit:contain;">`
+                  : `<span style="font-size:24px;">🏢</span>`}
+              </div>
+              <div>
+                <label for="logo-file-input" style="display:inline-block;padding:8px 16px;background:var(--primary);color:white;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">
+                  📁 Escolher arquivo
+                </label>
+                <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;">PNG, JPG, SVG ou WebP. Máx 2MB.</div>
+                <div id="logo-upload-status" style="font-size:12px;margin-top:4px;"></div>
+              </div>
+            </div>
+            <!-- URL manual (fallback) -->
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="url" class="form-input" id="agency-logo" value="${sanitize(agency.logo_url || '')}" placeholder="Ou cole a URL diretamente...">
+            </div>
+            <p class="form-hint">Faça upload ou cole a URL pública da imagem (PNG, SVG, JPG).</p>
           </div>
           <div class="form-group">
             <label class="form-label">Cor Principal</label>
@@ -137,6 +156,49 @@ async function renderAgenciaTab(container, profile) {
       </form>
     </div>
   `;
+
+  // Logo file upload
+  document.getElementById('logo-file-input')?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      document.getElementById('logo-upload-status').innerHTML = '<span style="color:#ef4444;">❌ Arquivo muito grande. Máx 2MB.</span>';
+      return;
+    }
+
+    const statusEl = document.getElementById('logo-upload-status');
+    statusEl.innerHTML = '<span style="color:var(--primary);">⏳ Fazendo upload...</span>';
+
+    try {
+      const ext = file.name.split('.').pop().toLowerCase();
+      const filename = `logo_${Date.now()}.${ext}`;
+      const { data, error } = await supabase.storage
+        .from('agency-assets')
+        .upload(filename, file, { upsert: true, contentType: file.type });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('agency-assets')
+        .getPublicUrl(filename);
+
+      document.getElementById('agency-logo').value = publicUrl;
+      document.getElementById('logo-preview').innerHTML = `<img src="${publicUrl}" style="width:100%;height:100%;object-fit:contain;">`;
+      statusEl.innerHTML = '<span style="color:#10b981;">✅ Upload concluído!</span>';
+    } catch (err) {
+      statusEl.innerHTML = `<span style="color:#ef4444;">❌ Erro: ${err.message}</span>`;
+    }
+  });
+
+  // Update preview when URL is typed manually
+  document.getElementById('agency-logo')?.addEventListener('input', e => {
+    const url = e.target.value.trim();
+    const preview = document.getElementById('logo-preview');
+    if (url) {
+      preview.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:contain;" onerror="this.parentElement.innerHTML='<span style=font-size:24px>🏢</span>'">`;
+    }
+  });
 
   // Color sync
   document.getElementById('agency-color')?.addEventListener('input', e => {
@@ -1003,68 +1065,23 @@ async function renderUsuariosTab(container, profile) {
 
 function renderUserRow(user, profile) {
   const rl = ROLE_LABELS[user.role] || '👤 —';
+  const isMe = user.id === currentUser?.id;
   return `
     <tr>
       <td>
         <div style="display:flex;align-items:center;gap:8px;">
           ${renderAvatar({ full_name: user.full_name, avatar_url: user.avatar_url }, 32)}
-          <span style="font-size:13px;font-weight:600;">${sanitize(user.full_name || '—')}</span>
-          ${user.id === currentUser?.id ? '<span style="font-size:10px;background:#eff6ff;color:#3b82f6;padding:1px 6px;border-radius:10px;margin-left:4px;">Você</span>' : ''}
+          <div>
+            <div style="font-size:13px;font-weight:600;">${sanitize(user.full_name || '—')} ${isMe ? '<span style="font-size:10px;background:#f0fdf4;color:#10b981;padding:1px 6px;border-radius:10px;">Você</span>' : ''}</div>
+            <div style="font-size:11px;color:var(--text-secondary);">${sanitize(user.email || '')}</div>
+          </div>
         </div>
       </td>
-      <td style="font-size:12px;color:var(--text-secondary);">${sanitize(user.email || '—')}</td>
+      <td><span style="font-size:12px;">${rl}</span></td>
+      <td><span style="font-size:12px;color:${user.is_active ? '#10b981' : '#6b7280'};">${user.is_active ? '✅ Ativo' : '⛔ Inativo'}</span></td>
       <td>
-        <select class="form-select role-select" data-user-id="${user.id}" data-current-role="${user.role}"
-          style="padding:5px 8px;font-size:12px;border-radius:6px;"
-          ${user.id === currentUser?.id ? 'disabled' : ''}>
-          ${['master','admin','manager','collaborator'].map(r =>
-            `<option value="${r}" ${user.role === r ? 'selected' : ''}>${ROLE_LABELS[r] || r}</option>`
-          ).join('')}
-        </select>
-      </td>
-      <td style="font-size:12px;color:var(--text-secondary);">${user.last_seen_at ? new Date(user.last_seen_at).toLocaleDateString('pt-BR') : '—'}</td>
-      <td>
-        ${user.id !== currentUser?.id ? `
-          <button class="btn-danger btn-sm btn-deactivate-user" data-user-id="${user.id}">🚫 Desativar</button>
-        ` : ''}
+        ${!isMe ? `<button class="btn-secondary btn-sm btn-deactivate-user" data-user-id="${user.id}" style="font-size:11px;">Desativar</button>` : ''}
       </td>
     </tr>
   `;
-}
-
-function showInviteModal() {
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal modal-md">
-      <div class="modal-header">
-        <h2 class="modal-title">📧 Convidar Usuário</h2>
-        <button class="modal-close" id="close-invite-modal">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="alert" style="background:#fffbeb;border:1px solid #fef3c7;border-radius:10px;padding:16px;margin-bottom:16px;">
-          <p style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:8px;">⚠️ Como convidar um usuário:</p>
-          <ol style="font-size:13px;color:#78350f;line-height:1.8;padding-left:18px;">
-            <li>Acesse o painel do <strong>Supabase</strong> → Authentication → Users</li>
-            <li>Clique em <strong>"Invite user"</strong> e insira o e-mail</li>
-            <li>O usuário receberá um e-mail com link de acesso</li>
-            <li>Após o primeiro login, volte aqui e configure a <strong>role</strong> do usuário na tabela acima</li>
-          </ol>
-          <p style="font-size:12px;color:#92400e;margin-top:10px;">
-            A criação automática de convites via frontend requer a <strong>Service Role Key</strong> do Supabase, que não deve ser exposta no cliente. Para automação, implemente um endpoint no seu backend.
-          </p>
-        </div>
-        <div style="background:#f0f9ff;border-radius:8px;padding:14px;font-size:13px;">
-          <strong>URL do painel Supabase:</strong>
-          <a href="https://app.supabase.com" target="_blank" style="display:block;color:#6366f1;margin-top:4px;font-size:12px;">https://app.supabase.com</a>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-primary" id="close-invite-ok">Entendido</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  overlay.querySelector('#close-invite-modal').addEventListener('click', () => overlay.remove());
-  overlay.querySelector('#close-invite-ok').addEventListener('click', () => overlay.remove());
 }
