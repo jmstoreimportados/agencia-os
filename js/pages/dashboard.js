@@ -14,6 +14,39 @@ import {
 let mrrChartInstance = null;
 
 // ============================================================
+// LOADING SKELETON
+// ============================================================
+function renderLoadingSkeleton(isCompany) {
+  const pulse = 'background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:skeleton-pulse 1.4s ease infinite;border-radius:8px;';
+  if (!isCompany) {
+    return `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;">
+        ${[1,2,3].map(() => `<div class="card" style="height:100px;${pulse}"></div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="card" style="height:300px;${pulse}"></div>
+        <div class="card" style="height:300px;${pulse}"></div>
+      </div>
+      <style>@keyframes skeleton-pulse{0%{background-position:200% 0}100%{background-position:-200% 0}}</style>
+    `;
+  }
+  return `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;">
+      ${[1,2,3,4,5].map(() => `<div class="card" style="height:100px;${pulse}"></div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px;">
+      <div class="card" style="height:260px;${pulse}"></div>
+      <div class="card" style="height:260px;${pulse}"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="card" style="height:340px;${pulse}"></div>
+      <div class="card" style="height:340px;${pulse}"></div>
+    </div>
+    <style>@keyframes skeleton-pulse{0%{background-position:200% 0}100%{background-position:-200% 0}}</style>
+  `;
+}
+
+// ============================================================
 // MAIN ENTRY POINT
 // ============================================================
 export async function renderDashboard(container, profile, agencyConfig) {
@@ -722,6 +755,13 @@ function renderMyClients(clients) {
               <div style="font-size:11px;font-weight:700;color:${health.color};">${c.health_score || 0}</div>
               <div style="font-size:10px;color:var(--text-secondary);">health</div>
             </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
           </div>
         `;
       }).join('')}
