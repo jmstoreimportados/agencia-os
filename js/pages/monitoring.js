@@ -16,6 +16,9 @@ let selectedPlatform = 'overview';
 let allClients = [];
 let chartInstances = {};
 let _agencyConfig = null;
+// Platforms loaded for the currently selected client
+// Each entry: { platform: string, has_token: boolean }
+let clientPlatformConfigs = [];
 
 // IVY Brand colors for PDF
 const IVY = {
@@ -112,6 +115,42 @@ function renderClientList(search = '') {
 }
 
 // ============================================================
+// LOAD CLIENT PLATFORMS
+// ============================================================
+/**
+ * Fetches active platform configs for a client.
+ * Returns an array of { platform, has_token } objects.
+ * Falls back to clients.monitored_platforms if no configs found.
+ */
+async function loadClientPlatforms(clientId) {
+  try {
+    const { supabase } = await import('../supabase.js');
+    const { data, error } = await supabase
+      .from('client_platform_configs')
+      .select('platform, access_token, sync_enabled')
+      .eq('client_id', clientId)
+      .eq('sync_enabled', true);
+
+    if (!error && data && data.length > 0) {
+      return data.map(row => ({
+        platform: row.platform,
+        has_token: !!(row.access_token && row.access_token.trim())
+      }));
+    }
+  } catch (_e) {
+    // supabase import or query failed — fall through to fallback
+  }
+
+  // Fallback: use clients.monitored_platforms
+  const client = allClients.find(c => c.id === clientId);
+  if (client && Array.isArray(client.monitored_platforms) && client.monitored_platforms.length > 0) {
+    return client.monitored_platforms.map(p => ({ platform: p, has_token: false }));
+  }
+
+  return [];
+}
+
+// ============================================================
 // LOAD CLIENT MONITORING
 // ============================================================
 async function loadClientMonitoring() {
@@ -119,6 +158,26 @@ async function loadClientMonitoring() {
   if (!main || !selectedClientId) return;
   const client = allClients.find(c => c.id === selectedClientId);
   if (!client) return;
+
+  // Load client-specific platform configs
+  clientPlatformConfigs = await loadClientPlatforms(selectedClientId);
+
+  // If no platforms configured, show a friendly message and stop
+  if (clientPlatformConfigs.length === 0) {
+    main.innerHTML = `
+      <div class="card" style="padding:40px;text-align:center;color:var(--text-secondary);">
+        <div style="font-size:40px;margin-bottom:16px;">⚙️</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:8px;">Nenhuma plataforma configurada para este cliente.</div>
+        <div style="font-size:13px;">Configure em <strong>Clientes → aba Plataformas</strong>.</div>
+      </div>`;
+    return;
+  }
+
+  // Reset selectedPlatform if it is no longer available for this client
+  const availablePlatformKeys = clientPlatformConfigs.map(p => p.platform);
+  if (selectedPlatform !== 'overview' && !availablePlatformKeys.includes(selectedPlatform)) {
+    selectedPlatform = 'overview';
+  }
 
   main.innerHTML = `
     <div>
@@ -148,11 +207,16 @@ async function loadClientMonitoring() {
         <button class="tab ${selectedPlatform === 'overview' ? 'active' : ''}" data-platform="overview">
           🏠 Visão Geral
         </button>
-        ${Object.entries(PLATFORMS).map(([key, p]) => `
-          <button class="tab ${selectedPlatform === key ? 'active' : ''}" data-platform="${key}">
-            ${p.icon} ${p.label}
-          </button>
-        `).join('')}
+        ${clientPlatformConfigs.filter(cfg => PLATFORMS[cfg.platform]).map(cfg => {
+          const p = PLATFORMS[cfg.platform];
+          const badge = cfg.has_token
+            ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;border-radius:20px;padding:1px 7px;margin-left:5px;font-weight:700;">🤖 Automático</span>'
+            : '<span style="font-size:10px;background:#f3f4f6;color:#6b7280;border-radius:20px;padding:1px 7px;margin-left:5px;font-weight:700;">✍️ Manual</span>';
+          return `
+          <button class="tab ${selectedPlatform === cfg.platform ? 'active' : ''}" data-platform="${cfg.platform}">
+            ${p.icon} ${p.label}${badge}
+          </button>`;
+        }).join('')}
       </div>
 
       <div id="platform-content">

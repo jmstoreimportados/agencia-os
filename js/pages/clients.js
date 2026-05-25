@@ -216,7 +216,8 @@ function renderClientModal(body, user) {
     { id: 'servicos',       label: '🛠️ Serviços',       icon: '🛠️' },
     { id: 'historico',      label: '📊 Histórico',      icon: '📊' },
     { id: 'aprovacoes',     label: '✅ Aprovações',     icon: '✅' },
-    { id: 'nps',            label: '⭐ NPS',            icon: '⭐' }
+    { id: 'nps',            label: '⭐ NPS',            icon: '⭐' },
+    { id: 'plataformas',    label: '🔧 Plataformas',    icon: '🔧' }
   ];
 
   body.innerHTML = `
@@ -276,6 +277,7 @@ function renderClientTab(tab, user) {
     case 'historico':   return renderTabHistorico(c);
     case 'aprovacoes':  return renderTabAprovacoes(c, user);
     case 'nps':         return renderTabNps(c, user);
+    case 'plataformas':  return renderTabPlataformas(c, user);
     default: return '';
   }
 }
@@ -844,4 +846,208 @@ function renderTabNps(c, user) {
     }
   }, 0);
   return `<div id="${containerId}"><div style="text-align:center;padding:40px;color:var(--text-secondary,#94a3b8);">⏳ Carregando...</div></div>`;
+}
+
+// ─── Aba Plataformas ───────────────────────────────────────
+function renderTabPlataformas(c, user) {
+  const containerId = 'tab-plataformas-content';
+  setTimeout(async () => {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    try {
+      const { data: configs, error } = await db
+        .from('client_platform_configs')
+        .select('*')
+        .eq('client_id', c.id);
+      if (error) throw error;
+
+      const configMap = {};
+      (configs || []).forEach(cfg => { configMap[cfg.platform] = cfg; });
+
+      const platforms = [
+        { id: 'instagram',        label: 'Instagram',          icon: '📸', color: '#E1306C', hasPageId: false },
+        { id: 'facebook',         label: 'Facebook',           icon: '👥', color: '#1877F2', hasPageId: true  },
+        { id: 'tiktok',           label: 'TikTok',             icon: '🎵', color: '#000000', hasPageId: false },
+        { id: 'google_business',  label: 'Google Meu Negócio', icon: '📍', color: '#4285F4', hasPageId: false }
+      ];
+
+      const monitoredPlatforms = Array.isArray(c.monitored_platforms) ? c.monitored_platforms : [];
+
+      const cards = platforms.map(p => {
+        const cfg   = configMap[p.id] || {};
+        const active = monitoredPlatforms.includes(p.id);
+        const hasToken = !!cfg.access_token;
+        const tokenExpired = cfg.token_expires_at && new Date(cfg.token_expires_at) < new Date();
+        const statusLabel = hasToken && !tokenExpired ? '🤖 Automático' : hasToken && tokenExpired ? '⚠️ Token expirado' : '✍️ Manual';
+        const statusColor = hasToken && !tokenExpired ? '#16a34a' : hasToken && tokenExpired ? '#ef4444' : '#64748b';
+        // Botão OAuth (só Meta e Google — TikTok requer aprovação especial)
+        const oauthSupported = ['instagram','facebook','google_business'].includes(p.id);
+        const oauthBtnHtml = oauthSupported ? `
+          <button onclick="window._clients.connectOAuth('${c.id}','${p.id}')"
+            style="margin-top:10px;width:100%;padding:8px;border:1.5px solid ${p.color};color:${p.color};background:transparent;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">
+            🔗 ${hasToken ? 'Reconectar conta' : 'Conectar conta via OAuth'}
+          </button>` : `
+          <div style="margin-top:10px;padding:8px;background:#f8fafc;border-radius:8px;font-size:11px;color:#64748b;text-align:center;">
+            TikTok requer aprovação manual da API — insira o token abaixo
+          </div>`;
+
+        return `
+          <div style="border:1.5px solid ${active ? p.color : '#e2e8f0'};border-radius:12px;padding:16px;background:${active ? p.color + '08' : 'white'};transition:all 0.2s" id="platform-card-${p.id}">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:24px">${p.icon}</span>
+                <div>
+                  <div style="font-weight:700;font-size:14px;color:#1e293b">${p.label}</div>
+                  <div style="font-size:11px;color:${statusColor};font-weight:600;margin-top:1px">${statusLabel}</div>
+                </div>
+              </div>
+              <!-- Toggle switch estilo iOS -->
+              <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;cursor:pointer">
+                <input type="checkbox" id="toggle-${p.id}" ${active ? 'checked' : ''}
+                  onchange="window._clients.togglePlatform('${p.id}', '${p.color}')"
+                  style="opacity:0;width:0;height:0;position:absolute">
+                <span id="toggle-track-${p.id}" style="
+                  position:absolute;top:0;left:0;right:0;bottom:0;
+                  background:${active ? p.color : '#cbd5e1'};
+                  border-radius:24px;transition:background 0.2s;
+                "></span>
+                <span id="toggle-thumb-${p.id}" style="
+                  position:absolute;top:3px;left:${active ? '23px' : '3px'};
+                  width:18px;height:18px;border-radius:50%;background:white;
+                  box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:left 0.2s;
+                "></span>
+              </label>
+            </div>
+            <!-- Campos extras (expandem quando ativo) -->
+            <div id="platform-fields-${p.id}" style="display:${active ? 'block' : 'none'}">
+              ${oauthBtnHtml}
+              <div style="margin-bottom:10px">
+                <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;color:#64748b;display:block;margin-bottom:4px">Account ID / Username</label>
+                <input type="text" id="field-username-${p.id}" value="${cfg.username || cfg.account_id || ''}"
+                  placeholder="@usuario ou ID da conta"
+                  style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+              </div>
+              ${p.hasPageId ? `
+              <div>
+                <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;color:#64748b;display:block;margin-bottom:4px">Page ID</label>
+                <input type="text" id="field-pageid-${p.id}" value="${cfg.page_id || ''}"
+                  placeholder="ID da página do Facebook"
+                  style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+              </div>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+
+      el.innerHTML = `
+        <style>
+          #tab-plataformas-content input[type="checkbox"] { accent-color: transparent; }
+        </style>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+          ${cards}
+        </div>
+        <div style="display:flex;justify-content:flex-end">
+          <button onclick="window._clients.savePlatforms('${c.id}')"
+            style="padding:10px 24px;background:#1a2744;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">
+            💾 Salvar Configurações
+          </button>
+        </div>
+      `;
+
+      // OAuth connect handler
+      window._clients.connectOAuth = async (clientId, platform) => {
+        // Buscar configurações do Meta App / Google salvas em system_config
+        const { data: cfg } = await db.from('system_config').select('value').eq('key', 'oauth_config').single();
+        const oauthCfg = cfg?.value || {};
+        const SUPABASE_FUNC_URL = `${db.supabaseUrl}/functions/v1/oauth-callback`;
+        const state = `${clientId}|${platform}`;
+
+        let oauthUrl = '';
+        if (platform === 'instagram' || platform === 'facebook') {
+          const metaAppId = oauthCfg.meta_app_id;
+          if (!metaAppId) {
+            showToast('Configure o Meta App ID em Configurações → Integrações primeiro.', 'error');
+            return;
+          }
+          const scope = platform === 'instagram'
+            ? 'instagram_basic,instagram_manage_insights,pages_show_list,pages_read_engagement'
+            : 'pages_show_list,pages_read_engagement,read_insights';
+          oauthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${metaAppId}&redirect_uri=${encodeURIComponent(SUPABASE_FUNC_URL)}&scope=${scope}&state=${encodeURIComponent(state)}&response_type=code`;
+        } else if (platform === 'google_business') {
+          const googleClientId = oauthCfg.google_client_id;
+          if (!googleClientId) {
+            showToast('Configure o Google Client ID em Configurações → Integrações primeiro.', 'error');
+            return;
+          }
+          oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(SUPABASE_FUNC_URL)}&scope=${encodeURIComponent('https://www.googleapis.com/auth/business.manage')}&state=${encodeURIComponent(state)}&response_type=code&access_type=offline&prompt=consent`;
+        }
+
+        // Abrir popup OAuth
+        const popup = window.open(oauthUrl, 'oauth_popup', 'width=600,height=700,scrollbars=yes');
+
+        // Ouvir resposta do callback
+        const listener = (event) => {
+          if (!event.data?.type?.startsWith('oauth_')) return;
+          window.removeEventListener('message', listener);
+          if (popup && !popup.closed) popup.close();
+          if (event.data.type === 'oauth_success') {
+            showToast(`${event.data.platform} conectado! Dados sincronizados automaticamente.`, 'success');
+            setTimeout(() => {
+              const tabPlat = document.querySelector('[data-tab="plataformas"]');
+              if (tabPlat) tabPlat.click();
+            }, 500);
+          } else {
+            showToast('Erro ao conectar: ' + (event.data.error || 'desconhecido'), 'error');
+          }
+        };
+        window.addEventListener('message', listener);
+      };
+
+      // Register toggle handler
+      window._clients.togglePlatform = (platformId, color) => {
+        const chkEl = document.getElementById(`toggle-${platformId}`);
+        const track  = document.getElementById(`toggle-track-${platformId}`);
+        const thumb  = document.getElementById(`toggle-thumb-${platformId}`);
+        const fields = document.getElementById(`platform-fields-${platformId}`);
+        const card   = document.getElementById(`platform-card-${platformId}`);
+        if (!chkEl) return;
+        const isOn = chkEl.checked;
+        if (track)  track.style.background = isOn ? color : '#cbd5e1';
+        if (thumb)  thumb.style.left = isOn ? '23px' : '3px';
+        if (fields) fields.style.display = isOn ? 'block' : 'none';
+        if (card)  { card.style.borderColor = isOn ? color : '#e2e8f0'; card.style.background = isOn ? color + '08' : 'white'; }
+      };
+
+      // Save handler
+      window._clients.savePlatforms = async (clientId) => {
+        const platformIds = ['instagram', 'facebook', 'tiktok', 'google_business'];
+        const activePlatforms = [];
+        const upserts = [];
+        platformIds.forEach(pid => {
+          const chk = document.getElementById(`toggle-${pid}`);
+          if (chk && chk.checked) {
+            activePlatforms.push(pid);
+            const username = document.getElementById(`field-username-${pid}`)?.value?.trim() || null;
+            const pageId   = document.getElementById(`field-pageid-${pid}`)?.value?.trim() || null;
+            upserts.push({ client_id: clientId, platform: pid, username, account_id: username, page_id: pageId, sync_enabled: true });
+          }
+        });
+        try {
+          const { error: clientErr } = await db.from('clients').update({ monitored_platforms: activePlatforms }).eq('id', clientId);
+          if (clientErr) throw clientErr;
+          if (upserts.length > 0) {
+            const { error: upsertErr } = await db.from('client_platform_configs').upsert(upserts, { onConflict: 'client_id,platform' });
+            if (upsertErr) throw upsertErr;
+          }
+          const idx = allClients.findIndex(cl => cl.id === clientId);
+          if (idx !== -1) allClients[idx].monitored_platforms = activePlatforms;
+          if (currentClient && currentClient.id === clientId) currentClient.monitored_platforms = activePlatforms;
+          showToast('Plataformas salvas!', 'success');
+        } catch(e) { showToast('Erro ao salvar: ' + e.message, 'error'); }
+      };
+
+    } catch(e) {
+      el.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-size:13px">Erro ao carregar plataformas: ${e.message}</div>`;
+    }
+  }, 0);
+  return `<div id="${containerId}"><div style="text-align:center;padding:40px;color:var(--text-secondary,#94a3b8);">Carregando...</div></div>`;
 }
